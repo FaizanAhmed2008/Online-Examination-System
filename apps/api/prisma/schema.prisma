@@ -1,0 +1,147 @@
+// ---------------------------------------------------------------------------
+// Online Examination System — data layer
+//
+// Sprint 2 (foundation & auth) adds the two entities authentication owns:
+// User and Session. The remaining PRD §14 entities (Subject, Question, Exam,
+// Attempt, ...) arrive with the feature that needs them, so schema and
+// migrations stay reviewable instead of being a speculative up-front guess.
+//
+// Workflow: see docs/development-conventions.md, section "Database".
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  importFileExtension = "ts"
+  runtime             = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// PRD §5. Fixed for the MVP; a user has exactly one role.
+enum Role {
+  STUDENT
+  FACULTY
+  ADMIN
+}
+
+/// A deactivated user keeps all historical data (attempts, results) but can no
+/// longer sign in. Users are deactivated, never deleted.
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// PRD §9: the MVP ships single-correct multiple choice only. The enum exists so
+/// another objective type can be added later without a migration of every row.
+enum QuestionType {
+  SINGLE_CHOICE
+}
+
+/// A question or subject is archived rather than deleted once anything refers
+/// to it, so historic exams and results keep their content.
+enum SubjectStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum QuestionStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model User {
+  id       String @id @default(uuid())
+  name     String
+  /// Always stored lower-cased and trimmed, so sign-in is case-insensitive.
+  email    String @unique
+  /// scrypt digest, never a plaintext or reversibly-encoded password.
+  passwordHash String
+  role     Role       @default(STUDENT)
+  status   UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  sessions Session[]
+  questions Question[]
+
+  @@map("users")
+}
+
+/// PRD §14. Admin-managed grouping for questions and exams.
+model Subject {
+  id          String        @id @default(uuid())
+  name        String
+  /// Short code shown to students, unique across the system.
+  code        String        @unique
+  description String?
+  status      SubjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  questions Question[]
+
+  @@map("subjects")
+}
+
+/// PRD §14. A single-correct objective question, owned by the faculty member
+/// who created it. Ownership is what authorises edits and deletes.
+model Question {
+  id          String         @id @default(uuid())
+  subjectId   String
+  createdById String
+  text        String
+  type        QuestionType   @default(SINGLE_CHOICE)
+  marks       Int
+  /// Shown only after an attempt is finalised (PRD §21).
+  explanation String?
+  status      QuestionStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  subject   Subject         @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  createdBy User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  options   QuestionOption[]
+
+  @@index([subjectId])
+  @@index([createdById])
+  @@index([status])
+
+  @@map("questions")
+}
+
+/// One selectable answer. Exactly one per question is correct; the invariant is
+/// enforced in the service layer, because a database-level guarantee would need
+/// a hand-written partial unique index.
+model QuestionOption {
+  id         String   @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean  @default(false)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+
+  @@map("question_options")
+}
+
+/// An opaque server-side session. The cookie carries a random 32-byte token;
+/// only its SHA-256 digest is stored, so a database leak cannot be replayed as
+/// a login. Revoking the row logs the user out everywhere immediately.
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+
+  @@map("sessions")
+}

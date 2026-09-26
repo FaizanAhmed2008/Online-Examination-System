@@ -1,0 +1,50 @@
+{
+  "name": "online-examination-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Online Examination System — academic web application. Source of truth: Online_Examination_System_PRD_v1.0.pdf",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n shared,api,web -c gray,cyan,magenta \"npm:dev:shared\" \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:shared": "npm run dev --workspace @oes/shared",
+    "dev:api": "npm run dev --workspace @oes/api",
+    "dev:web": "npm run dev --workspace @oes/web",
+    "build": "npm run build --workspace @oes/shared && npm run build --workspace @oes/api && npm run build --workspace @oes/web",
+    "typecheck": "npm run build --workspace @oes/shared && npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "npm run build --workspace @oes/shared && npm run test --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "npm run db:generate --workspace @oes/api",
+    "db:migrate": "npm run db:migrate --workspace @oes/api",
+    "db:status": "npm run db:status --workspace @oes/api",
+    "db:seed": "npm run db:seed --workspace @oes/api",
+    "db:studio": "npm run db:studio --workspace @oes/api",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "clean": "rm -rf node_modules apps/api/node_modules apps/web/node_modules packages/shared/node_modules apps/api/dist apps/web/dist packages/shared/dist"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.70.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true
+  }
+}
