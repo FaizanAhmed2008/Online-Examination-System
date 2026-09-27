@@ -5,11 +5,15 @@ import { AppShell } from '@/layouts/AppShell';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { AdminDashboardPage } from '@/pages/AdminDashboardPage';
 import { FacultyDashboardPage } from '@/pages/FacultyDashboardPage';
+import { FacultyExamsPage } from '@/pages/FacultyExamsPage';
 import { FacultyQuestionBankPage } from '@/pages/FacultyQuestionBankPage';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { StudentAttemptPage } from '@/pages/StudentAttemptPage';
 import { StudentDashboardPage } from '@/pages/StudentDashboardPage';
+import { StudentExamBriefPage } from '@/pages/StudentExamBriefPage';
+import { StudentExamsPage } from '@/pages/StudentExamsPage';
 import { SystemStatusPage } from '@/pages/SystemStatusPage';
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage';
 
@@ -42,13 +46,19 @@ export const routes: RouteObject[] = [
         children: [
           {
             element: <RequireRole allow={['STUDENT']} />,
-            children: [{ path: '/student', element: <StudentDashboardPage /> }],
+            children: [
+              { path: '/student', element: <StudentDashboardPage /> },
+              { path: '/student/exams', element: <StudentExamsPage /> },
+              { path: '/student/exams/:examId', element: <StudentExamBriefPage /> },
+              { path: '/student/attempts/:attemptId', element: <StudentAttemptPage /> },
+            ],
           },
           {
             element: <RequireRole allow={['FACULTY']} />,
             children: [
               { path: '/faculty', element: <FacultyDashboardPage /> },
               { path: '/faculty/questions', element: <FacultyQuestionBankPage /> },
+              { path: '/faculty/exams', element: <FacultyExamsPage /> },
             ],
           },
           {

@@ -52,6 +52,14 @@ enum QuestionStatus {
   INACTIVE
 }
 
+/// PRD §15. A draft is editable by its owner; publishing hands the exam to
+/// students. Deliberately coarse for the MVP: a scheduled window (openAt /
+/// closeAt) arrives with the attempt feature, not before.
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+}
+
 model User {
   id       String @id @default(uuid())
   name     String
@@ -66,6 +74,8 @@ model User {
 
   sessions Session[]
   questions Question[]
+  exams    Exam[]
+  attempts Attempt[]
 
   @@map("users")
 }
@@ -82,6 +92,7 @@ model Subject {
   updatedAt   DateTime      @updatedAt
 
   questions Question[]
+  exams    Exam[]
 
   @@map("subjects")
 }
@@ -104,6 +115,8 @@ model Question {
   subject   Subject         @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   createdBy User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
   options   QuestionOption[]
+  exams     ExamQuestion[]
+  answers   AttemptAnswer[]
 
   @@index([subjectId])
   @@index([createdById])
@@ -122,15 +135,122 @@ model QuestionOption {
   isCorrect  Boolean  @default(false)
 
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answers  AttemptAnswer[]
 
   @@index([questionId])
 
   @@map("question_options")
 }
 
+/// PRD §14, FR-14. An assessment owned by the faculty member who built it.
+/// The question set lives in `ExamQuestion` so one exam can order its questions
+/// and value them independently of the question bank.
+model Exam {
+  id              String     @id @default(uuid())
+  subjectId       String
+  createdById     String
+  title           String
+  /// Optional student-facing brief shown before an attempt starts.
+  instructions    String?
+  durationMinutes Int
+  status          ExamStatus @default(DRAFT)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  subject   Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  createdBy User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  questions ExamQuestion[]
+  attempts  Attempt[]
+
+  @@index([createdById])
+  @@index([subjectId])
+  @@index([status])
+
+  @@map("exams")
+}
+
+/// Join row giving an exam its question order and the marks that question
+/// carries *in that exam*.
+///
+/// Marks are copied from the question rather than read through it: editing a
+/// question in the bank later must not silently change a published exam's
+/// total. `position` is the order a student sees, and is unique per exam.
+model ExamQuestion {
+  id         String @id @default(uuid())
+  examId     String
+  questionId String
+  position   Int
+  marks      Int
+
+  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([examId, position])
+  @@index([examId])
+  @@index([questionId])
+
+  @@map("exam_questions")
+}
+
+/// PRD §16. One student's run at one exam.
+///
+/// The MVP allows a single attempt per student per exam: the unique pair below is
+/// what makes "start" idempotent, so a double click or a refresh resumes the
+/// same attempt instead of eating a second one. `expiresAt` is fixed when the
+/// attempt starts and is the only clock the client trusts for the countdown.
+model Attempt {
+  id          String        @id @default(uuid())
+  examId      String
+  studentId   String
+  status      AttemptStatus @default(IN_PROGRESS)
+  startedAt   DateTime      @default(now())
+  expiresAt   DateTime
+  submittedAt DateTime?
+  /// Marks awarded, written once on submission.
+  score       Int?
+
+  exam    Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers AttemptAnswer[]
+
+  @@unique([examId, studentId])
+  @@index([studentId])
+
+  @@map("attempts")
+}
+
+/// PRD §16. What the student picked for one question.
+///
+/// `isCorrect` and `marksAwarded` stay null until submission, so a half-finished
+/// attempt cannot leak the answer key to the client.
+model AttemptAnswer {
+  id               String   @id @default(uuid())
+  attemptId        String
+  questionId       String
+  selectedOptionId String?
+  isCorrect        Boolean?
+  marksAwarded     Int?
+
+  attempt  Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question       @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  option   QuestionOption? @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+
+  @@map("attempt_answers")
+}
+
+/// An attempt is either being sat or has been finalised. There is no third state
+/// for the MVP: grading happens on submit, so nothing is left half-graded.
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
 /// An opaque server-side session. The cookie carries a random 32-byte token;
-/// only its SHA-256 digest is stored, so a database leak cannot be replayed as
-/// a login. Revoking the row logs the user out everywhere immediately.
+/// only its SHA-256 digest is stored, so a database leak cannot be replayed as a
+/// login. Revoking the row logs the user out everywhere immediately.
 model Session {
   id        String   @id @default(uuid())
   userId    String

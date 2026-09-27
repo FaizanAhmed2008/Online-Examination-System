@@ -7,21 +7,25 @@ The product requirements live in [`Online_Examination_System_PRD_v1.0.pdf`](./On
 That PRD is the source of truth for scope, roles, features, UX and architecture. This repository
 follows it and does not silently change it.
 
-## Current status — Sprint 0 (Foundation)
+## Current status — Sprint 1 (Faculty exam authoring)
 
-The foundation is in place. **No examination feature has been built yet**, on purpose: the project is
-delivered incrementally, one bounded sprint at a time.
+Sign-in, the subject catalogue, the faculty question bank, and exam creation with publishing are
+built and covered by tests. **Student attempts, automatic evaluation and result screens are not
+started yet**, on purpose: the project is delivered incrementally, one bounded sprint at a time.
 
-| Area            | State                                                                       |
-| --------------- | --------------------------------------------------------------------------- |
-| Repository      | npm workspaces monorepo, TypeScript strict mode, ESLint, Prettier           |
-| Web client      | React + Vite + Tailwind CSS + shadcn/ui, routing and public layout shell    |
-| API             | Express + TypeScript, health checks, centralised error handling, Zod config |
-| Database        | PostgreSQL via Docker, Prisma 7 with migrations, no entities defined yet    |
-| Shared contract | `@oes/shared` — Zod schemas for API errors and health responses             |
-| Tests           | Vitest unit/integration tests for shared, API and web client                |
-| Authentication  | Not started (planned)                                                       |
-| Exam features   | Not started (planned)                                                       |
+| Area            | State                                                                              |
+| --------------- | ---------------------------------------------------------------------------------- |
+| Repository      | npm workspaces monorepo, TypeScript strict mode, ESLint, Prettier                  |
+| Web client      | React + Vite + Tailwind CSS + shadcn/ui, routing and role-aware layout shell       |
+| API             | Express + TypeScript, health checks, centralised error handling, Zod config        |
+| Database        | PostgreSQL via Docker, Prisma 7 migrations: users, subjects, questions, exams      |
+| Shared contract | `@oes/shared` — Zod schemas for auth, subjects, questions, exams and API errors    |
+| Tests           | 176 Vitest unit/integration tests across shared, API and web client                |
+| Authentication  | Sign-in, httpOnly session cookie, and role guards (FR-01)                          |
+| Subjects        | Administrator-managed catalogue, readable by faculty (FR-18)                       |
+| Question bank   | Faculty create, edit and archive their own questions (FR-13)                       |
+| Exams           | Faculty build a draft from their bank, then publish or unpublish it (FR-14, FR-15) |
+| Not started     | Student attempts, automatic evaluation, results, administrator reporting           |
 
 ## Technology stack
 

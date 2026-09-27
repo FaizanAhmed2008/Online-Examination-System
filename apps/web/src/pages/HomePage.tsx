@@ -42,7 +42,7 @@ const FOUNDATION = [
   {
     icon: Database,
     title: 'Data layer',
-    detail: 'PostgreSQL with Prisma migrations, ready for the first feature.',
+    detail: 'PostgreSQL with Prisma migrations for users, subjects, questions and exams.',
   },
 ] as const;
 
@@ -51,7 +51,7 @@ export function HomePage() {
     <div className="flex flex-col gap-16">
       <section className="flex max-w-2xl flex-col gap-6">
         <Badge variant="outline" className="w-fit">
-          Sprint 0 · Foundation
+          Sprint 1 · Faculty exam authoring
         </Badge>
         <h1 className="text-4xl font-semibold tracking-tight text-balance">
           Online Examination System
@@ -72,8 +72,8 @@ export function HomePage() {
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          Examination features are not implemented yet. This release contains the foundation they
-          will be built on.
+          Faculty can already build a paper from their question bank and publish it. Student
+          attempts and results come next.
         </p>
       </section>
 

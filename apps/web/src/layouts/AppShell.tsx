@@ -10,9 +10,13 @@ import { cn } from '@/lib/utils';
  * actually open today, not the areas the PRD will eventually add (PRD §11).
  */
 const NAV_BY_ROLE = {
-  STUDENT: [{ to: '/student', label: 'My dashboard', end: true }],
+  STUDENT: [
+    { to: '/student', label: 'My dashboard', end: true },
+    { to: '/student/exams', label: 'Exams', end: false },
+  ],
   FACULTY: [
     { to: '/faculty', label: 'Dashboard', end: true },
+    { to: '/faculty/exams', label: 'Exams', end: false },
     { to: '/faculty/questions', label: 'Question bank', end: false },
   ],
   ADMIN: [{ to: '/admin', label: 'Dashboard', end: true }],

@@ -8,7 +8,15 @@ import { PrismaClient } from '../generated/prisma/client.js';
  */
 export type DatabaseClient = Pick<
   PrismaClient,
-  '$queryRaw' | 'user' | 'session' | 'subject' | 'question'
+  | '$queryRaw'
+  | 'user'
+  | 'session'
+  | 'subject'
+  | 'question'
+  | 'exam'
+  | 'examQuestion'
+  | 'attempt'
+  | 'attemptAnswer'
 >;
 
 let prismaClient: PrismaClient | undefined;

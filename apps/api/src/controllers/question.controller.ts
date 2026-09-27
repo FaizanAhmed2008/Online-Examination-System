@@ -4,7 +4,7 @@ import {
   questionListQuerySchema,
   updateQuestionRequestSchema,
 } from '@oes/shared';
-import { z } from 'zod';
+import type { z } from 'zod';
 
 import type { DatabaseClient } from '../db/prisma.js';
 import { HttpError } from '../lib/http-error.js';

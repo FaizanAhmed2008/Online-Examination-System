@@ -134,11 +134,14 @@ export function SystemStatusPage() {
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground">
-        <Separator className="mb-4" />
-        The API runs as a separate process. Start both with <code>npm run dev</code> from the
-        repository root.
-      </p>
+      {/* A `div` cannot live inside a `p`, and `Separator` renders one. */}
+      <div className="text-muted-foreground space-y-3 text-xs">
+        <Separator />
+        <p>
+          The API runs as a separate process. Start both with <code>npm run dev</code> from the
+          repository root.
+        </p>
+      </div>
     </div>
   );
 }

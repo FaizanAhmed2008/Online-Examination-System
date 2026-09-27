@@ -62,9 +62,7 @@ export function QuestionForm({
   const [text, setText] = useState(question?.text ?? '');
   const [marks, setMarks] = useState(String(question?.marks ?? 1));
   const [explanation, setExplanation] = useState(question?.explanation ?? '');
-  const [options, setOptions] = useState<OptionDraft[]>(() =>
-    draftFrom(question),
-  );
+  const [options, setOptions] = useState<OptionDraft[]>(() => draftFrom(question));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
 

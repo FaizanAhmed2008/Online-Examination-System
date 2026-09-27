@@ -137,7 +137,7 @@ function stubApi(state: Partial<StubState> = {}) {
         subject:
           current.subjects.find((s) => s.id === (body as { subjectId: string }).subjectId) ??
           SUBJECTS[0]!,
-        options: (body as { options: { text: string; isCorrect: boolean }[] }).map(
+        options: (body as { options: { text: string; isCorrect: boolean }[] }).options.map(
           (option, index) => ({
             id: `new-option-${index}`,
             ...option,
@@ -157,7 +157,28 @@ function stubApi(state: Partial<StubState> = {}) {
         return jsonResponse({ ...question({ id }), status: 'INACTIVE' });
       }
 
-      const updated = { ...question({ id }), ...(body as object) };
+      // The API returns stored rows, so every option comes back with an id.
+      const payload = body as {
+        text?: string;
+        marks?: number;
+        subjectId?: string;
+        options?: { text: string; isCorrect: boolean }[];
+      };
+      const base = question({ id });
+      const updated: Question = {
+        ...base,
+        text: payload.text ?? base.text,
+        marks: payload.marks ?? base.marks,
+        subject:
+          current.subjects.find((subject) => subject.id === payload.subjectId) ?? base.subject,
+        options:
+          payload.options === undefined
+            ? base.options
+            : payload.options.map((option, index) => ({
+                id: `option-${index + 1}`,
+                ...option,
+              })),
+      };
       current.questions = current.questions.map((item) => (item.id === id ? updated : item));
       return jsonResponse(updated);
     }
@@ -170,7 +191,7 @@ function stubApi(state: Partial<StubState> = {}) {
   return { fetchMock, state: current };
 }
 
-function renderAt(path: string, role: UserRole = 'FACULTY') {
+function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
 
   return render(
@@ -216,7 +237,7 @@ describe('faculty question bank', () => {
 
   it('keeps the route closed to students', async () => {
     stubApi({ role: 'STUDENT' });
-    renderAt('/faculty/questions', 'STUDENT');
+    renderAt('/faculty/questions');
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'You do not have access to this page' }),
@@ -436,7 +457,9 @@ describe('faculty question bank', () => {
     await openBank({ waitForSubjects: false });
 
     expect(await screen.findByText('Subjects unavailable')).toBeInTheDocument();
-    // The create affordance stays disabled: a question cannot exist without a subject.
-    expect(screen.getByRole('button', { name: 'New question' })).toBeDisabled();
+    // The create affordances stay disabled: a question cannot exist without a subject.
+    for (const button of await screen.findAllByRole('button', { name: 'New question' })) {
+      expect(button).toBeDisabled();
+    }
   });
 });

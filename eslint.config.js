@@ -62,6 +62,16 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      /**
+       * Fetching client data on mount means awaiting a request and then calling
+       * `setState` from an effect, which is the documented pattern for a client
+       * without a framework loader. The rule is aimed at effects that only
+       * synchronise state and flags data fetching as collateral damage.
+       *
+       * Every other react-hooks rule stays on, including `exhaustive-deps` and
+       * `rules-of-hooks`, which are the ones that prevent real bugs.
+       */
+      'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },

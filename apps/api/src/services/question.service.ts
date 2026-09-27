@@ -238,6 +238,26 @@ function toView(row: {
   subject: { id: string; name: string; code: string; description: string | null; status: string };
   options: { id: string; text: string; isCorrect: boolean }[];
 }): QuestionView {
+  return toQuestionView(row);
+}
+
+/**
+ * Maps a question row to its API shape.
+ *
+ * Exported so features that embed a question (the exam paper) cannot drift from
+ * the shape the question bank itself returns.
+ */
+export function toQuestionView(row: {
+  id: string;
+  text: string;
+  type: 'SINGLE_CHOICE';
+  marks: number;
+  explanation: string | null;
+  status: 'ACTIVE' | 'INACTIVE';
+  createdAt: Date;
+  subject: { id: string; name: string; code: string; description: string | null; status: string };
+  options: { id: string; text: string; isCorrect: boolean }[];
+}): QuestionView {
   return {
     id: row.id,
     text: row.text,

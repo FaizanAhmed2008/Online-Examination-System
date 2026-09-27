@@ -1,0 +1,12 @@
+# Normalise line endings in the repository.
+#
+# Without this, a Windows checkout with `core.autocrlf=true` materialises CRLF
+# files, which Prettier rejects because `.prettierrc.json` sets `endOfLine: lf`.
+# That made `npm run check` fail on a clean clone.
+* text=auto eol=lf
+
+# Generated and vendored paths that are not ours to reformat.
+apps/api/src/generated/** binary
+apps/api/prisma/migrations/** text eol=lf
+*.png binary
+*.pdf binary

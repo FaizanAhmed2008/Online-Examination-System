@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createQuestionRequestSchema, type Question, type Subject } from '@oes/shared';
+import type { createQuestionRequestSchema, Question, Subject } from '@oes/shared';
 
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -52,9 +52,9 @@ export function FacultyQuestionBankPage() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | undefined>(undefined);
 
-  const loadSubjects = useCallback(async () => {
-    setSubjectsState('loading');
+  const [actionError, setActionError] = useState<string | null>(null);
 
+  const loadSubjects = useCallback(async () => {
     try {
       setSubjects(await listSubjects());
       setSubjectsState('ready');
@@ -67,10 +67,10 @@ export function FacultyQuestionBankPage() {
   // which is what makes the empty state honest.
   const [submitted, setSubmitted] = useState({ q: '', subjectId: '' });
 
+  // Neither loader sets state before it awaits: the mount effects below start from
+  // an initial `loading` value, and a user-triggered reload sets `loading` in the
+  // handler that caused it. Setting it here would cascade a render on mount.
   const loadQuestions = useCallback(async () => {
-    setListState('loading');
-    setListError(null);
-
     try {
       const result = await listQuestions({
         page,
@@ -97,6 +97,23 @@ export function FacultyQuestionBankPage() {
     void loadQuestions();
   }, [loadQuestions]);
 
+  /** Marks the list as loading again before a reload the user asked for. */
+  const beginReload = (): void => {
+    setListState('loading');
+    setListError(null);
+  };
+
+  const applyFilter = (q: string, subjectId: string): void => {
+    beginReload();
+    setPage(1);
+    setSubmitted({ q, subjectId });
+  };
+
+  const goToPage = (next: number): void => {
+    beginReload();
+    setPage(next);
+  };
+
   const totalPages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
   const filtersActive = submitted.q.length > 0 || submitted.subjectId.length > 0;
 
@@ -110,6 +127,7 @@ export function FacultyQuestionBankPage() {
   ): Promise<void> => {
     setSaving(true);
     setNotice(null);
+    setActionError(null);
 
     try {
       if (editing === undefined) {
@@ -123,24 +141,23 @@ export function FacultyQuestionBankPage() {
       setEditorOpen(false);
       setEditing(undefined);
       await loadQuestions();
-    } catch (error) {
-      // Re-thrown so QuestionForm can map field-level details onto the fields.
-      throw error;
     } finally {
       setSaving(false);
+      // Re-thrown so QuestionForm can map field-level details onto the fields.
     }
   };
 
   const handleDelete = async (question: Question): Promise<void> => {
     setBusyId(question.id);
     setNotice(null);
+    setActionError(null);
 
     try {
       await archiveQuestion(question.id);
       setNotice('Question deleted.');
       await loadQuestions();
     } catch (error) {
-      setListError(
+      setActionError(
         error instanceof ApiError ? error.message : 'The question could not be deleted.',
       );
     } finally {
@@ -172,8 +189,12 @@ export function FacultyQuestionBankPage() {
 
       {notice === null ? null : <Alert tone="success">{notice}</Alert>}
 
-      {subjectsState === 'error' ? (
-        <Alert tone="error" title="Subjects unavailable">
+      {actionError === null ? null : <Alert tone="error">{actionError}</Alert>}
+
+      {/* Shown whether the list failed to load or came back empty: either way a
+          question cannot be created, and the disabled button needs a reason. */}
+      {subjectsState === 'error' || (subjectsState === 'ready' && subjects.length === 0) ? (
+        <Alert tone="info" title="Subjects unavailable">
           Subjects are managed by an administrator. Ask one to create a subject before adding
           questions.
         </Alert>
@@ -207,8 +228,7 @@ export function FacultyQuestionBankPage() {
             className="grid gap-3 sm:grid-cols-[1fr_auto_auto]"
             onSubmit={(event) => {
               event.preventDefault();
-              setPage(1);
-              setSubmitted({ q: search.trim(), subjectId: subjectFilter });
+              applyFilter(search.trim(), subjectFilter);
             }}
           >
             <div className="space-y-1.5">
@@ -248,8 +268,7 @@ export function FacultyQuestionBankPage() {
                   onClick={() => {
                     setSearch('');
                     setSubjectFilter('');
-                    setPage(1);
-                    setSubmitted({ q: '', subjectId: '' });
+                    applyFilter('', '');
                   }}
                 >
                   Clear
@@ -270,7 +289,15 @@ export function FacultyQuestionBankPage() {
         <Alert tone="error" title="Could not load questions">
           {listError}
           <div className="mt-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => void loadQuestions()}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                beginReload();
+                void loadQuestions();
+              }}
+            >
               Try again
             </Button>
           </div>
@@ -322,7 +349,7 @@ export function FacultyQuestionBankPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                onClick={() => goToPage(Math.max(1, state.page - 1))}
                 disabled={state.page <= 1}
               >
                 Previous
@@ -334,7 +361,7 @@ export function FacultyQuestionBankPage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                onClick={() => goToPage(Math.min(totalPages, state.page + 1))}
                 disabled={state.page >= totalPages}
               >
                 Next

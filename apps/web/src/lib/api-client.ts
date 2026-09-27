@@ -2,8 +2,20 @@ import {
   apiErrorResponseSchema,
   type ApiErrorCode,
   type ApiErrorDetail,
+  type Attempt,
+  attemptResultSchema,
+  attemptSchema,
+  type AttemptAnswerInput,
+  type AvailableExam,
+  availableExamsResponseSchema,
+  type CreateExamRequest,
   type CreateQuestionRequest,
   type CreateSubjectRequest,
+  type Exam,
+  type ExamListQuery,
+  examListResponseSchema,
+  examSchema,
+  type ExamSummary,
   type LoginRequest,
   type LoginResponse,
   loginResponseSchema,
@@ -14,11 +26,16 @@ import {
   type QuestionListQuery,
   type ReadinessResponse,
   readinessResponseSchema,
+  type SaveAnswersResponse,
+  saveAnswersResponseSchema,
   type SessionUser,
+  type StartAttemptRequest,
   type Subject,
   subjectListResponseSchema,
   subjectSchema,
   questionSchema,
+  type SubmitAttemptRequest,
+  type UpdateExamRequest,
   type UpdateQuestionRequest,
   type UpdateSubjectRequest,
 } from '@oes/shared';
@@ -58,7 +75,7 @@ interface RawResponse {
 }
 
 interface SendOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
 }
 
@@ -231,4 +248,98 @@ export async function updateQuestion(id: string, input: UpdateQuestionRequest): 
 /** Archives the question. The API keeps the row so published exams survive. */
 export async function archiveQuestion(id: string): Promise<Question> {
   return request(`/questions/${id}`, questionSchema, { method: 'DELETE' });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Exams (faculty: create a draft, then publish)                                */
+/* -------------------------------------------------------------------------- */
+
+function examListPath(query: ExamListQuery): string {
+  const params = new URLSearchParams();
+
+  if (query.status !== undefined) params.set('status', query.status);
+  if (query.subjectId !== undefined && query.subjectId.length > 0)
+    params.set('subjectId', query.subjectId);
+
+  params.set('page', String(query.page));
+  params.set('pageSize', String(query.pageSize));
+
+  return `/exams?${params.toString()}`;
+}
+
+export async function listExams(
+  query: Partial<ExamListQuery> = {},
+): Promise<{ items: ExamSummary[]; page: number; pageSize: number; total: number }> {
+  return request(examListPath({ page: 1, pageSize: 20, ...query }), examListResponseSchema);
+}
+
+/** Reads one exam with its full paper, which the list shape deliberately omits. */
+export function getExam(id: string): Promise<Exam> {
+  return request(`/exams/${id}`, examSchema);
+}
+
+export function createExam(input: CreateExamRequest): Promise<Exam> {
+  return request('/exams', examSchema, { method: 'POST', body: input });
+}
+
+export function updateExam(id: string, input: UpdateExamRequest): Promise<Exam> {
+  return request(`/exams/${id}`, examSchema, { method: 'PATCH', body: input });
+}
+
+/** Deletes a draft. The API refuses this for a published exam. */
+export async function deleteExam(id: string): Promise<void> {
+  await send(`/exams/${id}`, { method: 'DELETE' });
+}
+
+export function publishExam(id: string): Promise<Exam> {
+  return request(`/exams/${id}/publish`, examSchema, { method: 'POST' });
+}
+
+export function unpublishExam(id: string): Promise<Exam> {
+  return request(`/exams/${id}/unpublish`, examSchema, { method: 'POST' });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Attempts (student: available exams, then start, answer and submit)          */
+/* -------------------------------------------------------------------------- */
+
+export async function listAvailableExams(): Promise<AvailableExam[]> {
+  const { status, payload } = await send('/attempts/exams');
+  const parsed = availableExamsResponseSchema.safeParse(payload);
+
+  if (!parsed.success) {
+    throw contractBreach(status);
+  }
+
+  return parsed.data.items;
+}
+
+/**
+ * Starts an attempt, or resumes the one already in flight. The API makes this
+ * idempotent, so a double click or a refresh cannot consume a second attempt.
+ */
+export function startAttempt(input: StartAttemptRequest): Promise<Attempt> {
+  return request('/attempts', attemptSchema, { method: 'POST', body: input });
+}
+
+/** Reads an attempt for resume, including the answers already given. */
+export function getAttempt(id: string): Promise<Attempt> {
+  return request(`/attempts/${id}`, attemptSchema);
+}
+
+export function saveAttemptAnswers(
+  id: string,
+  answers: AttemptAnswerInput[],
+): Promise<SaveAnswersResponse> {
+  return request(`/attempts/${id}/answers`, saveAnswersResponseSchema, {
+    method: 'PUT',
+    body: { answers },
+  });
+}
+
+export function submitAttempt(id: string, answers: AttemptAnswerInput[]) {
+  return request(`/attempts/${id}/submit`, attemptResultSchema, {
+    method: 'POST',
+    body: { answers } satisfies SubmitAttemptRequest,
+  });
 }
