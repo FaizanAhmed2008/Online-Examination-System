@@ -5,18 +5,12 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 /**
- * Single flat ESLint config for the whole workspace. Keeping one config avoids
- * three slightly different rule sets drifting apart.
+ * Single flat ESLint config for the demo app. Keeping one config avoids rule
+ * sets drifting apart between files.
  */
 export default tseslint.config(
   {
-    ignores: [
-      '**/dist/**',
-      '**/node_modules/**',
-      '**/coverage/**',
-      '**/src/generated/**',
-      '**/*.d.ts',
-    ],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/*.d.ts'],
   },
 
   js.configs.recommended,
@@ -39,17 +33,9 @@ export default tseslint.config(
     },
   },
 
-  // API and shared package: Node.js
+  // The demo is a browser app.
   {
-    files: ['apps/api/**/*.ts', 'packages/shared/**/*.ts', 'apps/api/vitest.config.ts'],
-    languageOptions: {
-      globals: { ...globals.node },
-    },
-  },
-
-  // Web client: browser
-  {
-    files: ['apps/web/src/**/*.{ts,tsx}', 'apps/web/vite.config.ts'],
+    files: ['apps/demo/src/**/*.{ts,tsx}', 'apps/demo/vite.config.ts'],
     languageOptions: {
       globals: { ...globals.browser },
       parserOptions: {
@@ -63,33 +49,13 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       /**
-       * Fetching client data on mount means awaiting a request and then calling
+       * Loading demo data on mount means awaiting a promise and then calling
        * `setState` from an effect, which is the documented pattern for a client
        * without a framework loader. The rule is aimed at effects that only
-       * synchronise state and flags data fetching as collateral damage.
-       *
-       * Every other react-hooks rule stays on, including `exhaustive-deps` and
-       * `rules-of-hooks`, which are the ones that prevent real bugs.
+       * synchronise state and flags data loading as collateral damage.
        */
       'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-    },
-  },
-
-  // shadcn/ui components intentionally export their variant helpers alongside
-  // the component, which Fast Refresh does not support.
-  {
-    files: ['apps/web/src/components/ui/**/*.tsx'],
-    rules: {
-      'react-refresh/only-export-components': 'off',
-    },
-  },
-
-  // Tests may be a little more relaxed about non-null assertions.
-  {
-    files: ['**/*.test.{ts,tsx}', '**/src/test/**'],
-    rules: {
-      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
 );
