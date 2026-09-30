@@ -2,7 +2,7 @@
   "name": "online-examination-system",
   "version": "0.1.0",
   "private": true,
-  "description": "Online Examination System - working demo prototype. Frontend only, seeded demo data, no backend or database.",
+  "description": "Online Examination System - web application for setting and sitting online examinations.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -11,9 +11,9 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @oes/demo",
-    "build": "npm run build --workspace @oes/demo",
-    "preview": "npm run preview --workspace @oes/demo",
+    "dev": "npm run dev --workspace @oes/web",
+    "build": "npm run build --workspace @oes/web",
+    "preview": "npm run preview --workspace @oes/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

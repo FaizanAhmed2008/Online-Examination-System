@@ -1,8 +1,8 @@
 {
-  "name": "@oes/demo",
+  "name": "@oes/web",
   "version": "0.1.0",
   "private": true,
-  "description": "Online Examination System - self-contained demo. Demo data in the browser, no backend, no database, no login.",
+  "description": "Online Examination System - web client (React + TypeScript + Vite + Tailwind).",
   "type": "module",
   "scripts": {
     "dev": "vite",

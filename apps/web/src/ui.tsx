@@ -1,6 +1,6 @@
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
-/** Joins class names, dropping anything falsy. Enough for a prototype. */
+/** Joins class names, dropping anything falsy. */
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter((part) => typeof part === 'string' && part.length > 0).join(' ');
 }

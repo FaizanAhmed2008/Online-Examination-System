@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
 /*
- * Demo styling is deliberately plain: Tailwind's built-in palette, no design
- * token layer. A prototype should be readable end to end without a second file
+ * Styling is deliberately plain: Tailwind's built-in palette, no design
+ * token layer. The screens should be readable end to end without a second file
  * of CSS variables to understand.
  */
 

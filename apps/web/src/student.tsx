@@ -2,44 +2,38 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock, FileText, Send, XCircle } from 'lucide-react';
 
 import type { Route } from './App';
-import type { Attempt, Exam, Question } from './data';
-import { SUBJECT_NAME, STUDENT_NAME } from './data';
+import type { Attempt, Exam, Question, User } from './data';
+import { subjectLabel, totalMarks } from './data';
 import {
   attemptFor,
-  examMarks,
-  grade,
+  gradeAttempt,
   isSubmitted,
   newAttempt,
-  publishedExams,
+  paperQuestions,
+  visibleExams,
   type Store,
 } from './store';
 import { Badge, Button, Card, CardBody, ConfirmButton, Notice, Page, Stat, cx } from './ui';
 
 type Go = (route: Route) => void;
-
-/** "Operating Systems (CS204)" — the label used everywhere an exam is shown. */
-/** "Operating Systems (CS204)" — the label used everywhere an exam is shown. */
-function subjectLabel(exam: Exam): string {
-  const name = SUBJECT_NAME.get(exam.subject);
-  return name === undefined ? exam.subject : `${name} (${exam.subject})`;
-}
+type Account = User;
 
 /* -------------------------------------------------------------------------- */
 /* Dashboard and exam list                                                     */
 /* -------------------------------------------------------------------------- */
 
-export function StudentHome({ store, go }: { store: Store; go: Go }) {
+export function StudentHome({ account, store, go }: { account: Account; store: Store; go: Go }) {
   const { state } = store;
-  const exams = publishedExams(state);
-  const withAttempt = exams.map((exam) => ({ exam, attempt: attemptFor(state, exam.id) }));
-  const open = withAttempt.filter(({ attempt }) => attempt === undefined || !isSubmitted(attempt));
-  const done = withAttempt.filter(({ attempt }) => isSubmitted(attempt));
-  const name = STUDENT_NAME.split(' ')[0] ?? STUDENT_NAME;
+  const exams = visibleExams(state);
+  const rows = exams.map((exam) => ({ exam, attempt: attemptFor(state, exam.id, account.id) }));
+  const open = rows.filter(({ attempt }) => attempt === undefined || !isSubmitted(attempt));
+  const done = rows.filter(({ attempt }) => isSubmitted(attempt));
+  const firstName = account.name.split(' ')[0] ?? account.name;
 
   return (
     <Page
-      title={`Hello, ${name}`}
-      subtitle="Every exam your lecturer has published, and how far you have got with each one."
+      title={`Hello, ${firstName}`}
+      subtitle="Every published exam, and how far you have got with each one."
     >
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat label="Available" value={exams.length} />
@@ -49,12 +43,11 @@ export function StudentHome({ store, go }: { store: Store; go: Go }) {
 
       {exams.length === 0 ? (
         <Notice>
-          Nothing has been published yet. Ask your lecturer to publish an exam, or use the Faculty
-          role to publish the seeded draft paper.
+          No exam has been published yet. Check back once your lecturer publishes one.
         </Notice>
       ) : (
         <ul className="grid gap-3">
-          {withAttempt.map(({ exam, attempt }) => (
+          {rows.map(({ exam, attempt }) => (
             <li key={exam.id}>
               <ExamCard exam={exam} attempt={attempt} store={store} go={go} />
             </li>
@@ -77,8 +70,7 @@ function ExamCard({
   go: Go;
 }) {
   const { state } = store;
-  const name = subjectLabel(exam);
-  const marks = examMarks(exam, state.questions);
+  const marks = totalMarks(exam, state.questions);
   const submitted = isSubmitted(attempt);
 
   return (
@@ -90,7 +82,7 @@ function ExamCard({
             <StatusBadge attempt={attempt} />
           </div>
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-            <span>{name}</span>
+            <span>{subjectLabel(exam.subject)}</span>
             <span className="inline-flex items-center gap-1">
               <FileText aria-hidden="true" className="size-3.5" />
               {exam.questionIds.length} questions · {marks} marks
@@ -153,12 +145,23 @@ function StatusBadge({ attempt }: { attempt: Attempt | undefined }) {
 /* Instructions and start                                                      */
 /* -------------------------------------------------------------------------- */
 
-export function StudentBrief({ examId, store, go }: { examId: string; store: Store; go: Go }) {
+export function StudentBrief({
+  account,
+  examId,
+  store,
+  go,
+}: {
+  account: Account;
+  examId: string;
+  store: Store;
+  go: Go;
+}) {
   const { state, setState } = store;
-  const [error, setError] = useState<string | null>(null);
-  const exam = state.exams.find((candidate) => candidate.id === examId);
+  const exam = state.exams.find(
+    (candidate) => candidate.id === examId && candidate.status === 'PUBLISHED',
+  );
 
-  if (exam === undefined || exam.status !== 'PUBLISHED') {
+  if (exam === undefined) {
     return (
       <Page title="Exam unavailable">
         <Notice tone="red">That exam is not available. It may have been unpublished.</Notice>
@@ -166,8 +169,8 @@ export function StudentBrief({ examId, store, go }: { examId: string; store: Sto
     );
   }
 
-  const existing = attemptFor(state, exam.id);
-  const marks = examMarks(exam, state.questions);
+  const existing = attemptFor(state, exam.id, account.id);
+  const marks = totalMarks(exam, state.questions);
   const started = existing !== undefined && !isSubmitted(existing);
 
   /** Starts an attempt, or resumes the one already in flight. */
@@ -177,14 +180,9 @@ export function StudentBrief({ examId, store, go }: { examId: string; store: Sto
       return;
     }
 
-    try {
-      const attempt = newAttempt(exam);
-
-      setState((state) => ({ ...state, attempts: [...state.attempts, attempt] }));
-      go({ name: 'attempt', attemptId: attempt.id });
-    } catch {
-      setError('The attempt could not be started. Reset the demo and try again.');
-    }
+    const attempt = newAttempt(exam, account.id);
+    setState((current) => ({ ...current, attempts: [...current.attempts, attempt] }));
+    go({ name: 'attempt', attemptId: attempt.id });
   };
 
   return (
@@ -193,7 +191,7 @@ export function StudentBrief({ examId, store, go }: { examId: string; store: Sto
 
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{exam.title}</h1>
-        <p className="mt-1 text-sm text-slate-600">{subjectLabel(exam)}</p>
+        <p className="mt-1 text-sm text-slate-600">{subjectLabel(exam.subject)}</p>
       </div>
 
       <Card>
@@ -216,8 +214,6 @@ export function StudentBrief({ examId, store, go }: { examId: string; store: Sto
             answers until you submit.
           </Notice>
 
-          {error === null ? null : <Notice tone="red">{error}</Notice>}
-
           <Button onClick={start}>{started ? 'Resume exam' : 'Start attempt'}</Button>
         </CardBody>
       </Card>
@@ -238,32 +234,29 @@ function Fact({ label, value }: { label: string; value: string }) {
 /* The attempt screen                                                          */
 /* -------------------------------------------------------------------------- */
 
-/** Questions of an exam, in paper order. */
-function paperQuestions(exam: Exam, questions: Question[]): Question[] {
-  return exam.questionIds
-    .map((id) => questions.find((question) => question.id === id))
-    .filter((question): question is Question => question !== undefined);
-}
-
 function formatClock(milliseconds: number): string {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 export function StudentAttempt({
+  account,
   attemptId,
   store,
   go,
 }: {
+  account: Account;
   attemptId: string;
   store: Store;
   go: Go;
 }) {
   const { state, setState } = store;
   const [index, setIndex] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(0);
 
-  const attempt = state.attempts.find((candidate) => candidate.id === attemptId);
+  const attempt = state.attempts.find(
+    (candidate) => candidate.id === attemptId && candidate.studentId === account.id,
+  );
   const exam = state.exams.find((candidate) => candidate.id === attempt?.examId);
 
   const questions = useMemo(
@@ -283,7 +276,7 @@ export function StudentAttempt({
           ? {
               ...candidate,
               submittedAt: Date.now(),
-              score: grade(exam, current.questions, candidate.answers),
+              score: gradeAttempt(exam, current.questions, candidate.answers),
             }
           : candidate,
       ),
@@ -299,8 +292,12 @@ export function StudentAttempt({
       return;
     }
 
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const tick = () => {
+      setNow(Date.now());
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
 
     return () => {
       clearInterval(timer);
@@ -319,7 +316,7 @@ export function StudentAttempt({
   if (attempt === undefined || exam === undefined) {
     return (
       <Page title="Attempt not found">
-        <Notice tone="red">That attempt no longer exists.</Notice>
+        <Notice tone="red">That attempt does not exist, or it belongs to another account.</Notice>
       </Page>
     );
   }
@@ -383,7 +380,7 @@ export function StudentAttempt({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight">{exam.title}</h1>
-          <p className="mt-0.5 text-sm text-slate-600">{subjectLabel(exam)}</p>
+          <p className="mt-0.5 text-sm text-slate-600">{subjectLabel(exam.subject)}</p>
         </div>
         <div className="text-right">
           <p className="text-xs text-slate-500">Time remaining</p>
@@ -410,7 +407,9 @@ export function StudentAttempt({
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
           <div
             className="h-full rounded-full bg-slate-900 transition-all"
-            style={{ width: `${(answered.size / questions.length) * 100}%` }}
+            style={{
+              width: `${questions.length === 0 ? 0 : (answered.size / questions.length) * 100}%`,
+            }}
           />
         </div>
       </div>
@@ -539,16 +538,20 @@ export function StudentAttempt({
 /* -------------------------------------------------------------------------- */
 
 export function StudentResult({
+  account,
   attemptId,
   store,
   go,
 }: {
+  account: Account;
   attemptId: string;
   store: Store;
   go: Go;
 }) {
   const { state } = store;
-  const attempt = state.attempts.find((candidate) => candidate.id === attemptId);
+  const attempt = state.attempts.find(
+    (candidate) => candidate.id === attemptId && candidate.studentId === account.id,
+  );
   const exam = state.exams.find((candidate) => candidate.id === attempt?.examId);
 
   if (attempt === undefined || exam === undefined || attempt.submittedAt === null) {
@@ -560,8 +563,8 @@ export function StudentResult({
   }
 
   const questions = paperQuestions(exam, state.questions);
-  const total = examMarks(exam, state.questions);
-  const percent = total === 0 ? 0 : Math.round(((attempt.score ?? 0) / total) * 100);
+  const marks = totalMarks(exam, state.questions);
+  const percent = marks === 0 ? 0 : Math.round(((attempt.score ?? 0) / marks) * 100);
 
   return (
     <Page
@@ -573,10 +576,11 @@ export function StudentResult({
           <div>
             <p className="text-sm text-slate-600">Your score</p>
             <p className="text-4xl font-semibold tabular-nums">
-              {`${attempt.score ?? 0} / ${total}`}
+              {`${attempt.score ?? 0} / ${marks}`}
             </p>
             <p className="mt-1 text-sm text-slate-600">
-              {percent}% · {Object.values(attempt.answers).filter((a) => a !== null).length} of{' '}
+              {percent}% ·{' '}
+              {Object.values(attempt.answers).filter((answer) => answer !== null).length} of{' '}
               {questions.length} answered
             </p>
           </div>
@@ -633,7 +637,7 @@ export function StudentResult({
                   {isRight ? null : (
                     <div className="flex gap-2">
                       <dt className="w-28 shrink-0 text-slate-500">Correct answer</dt>
-                      <dd className="font-medium">{correct === undefined ? '—' : correct.text}</dd>
+                      <dd className="font-medium">{correct?.text ?? '—'}</dd>
                     </div>
                   )}
                 </dl>

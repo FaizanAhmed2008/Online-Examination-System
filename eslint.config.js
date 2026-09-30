@@ -5,7 +5,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 /**
- * Single flat ESLint config for the demo app. Keeping one config avoids rule
+ * Single flat ESLint config for the web client. Keeping one config avoids rule
  * sets drifting apart between files.
  */
 export default tseslint.config(
@@ -33,9 +33,9 @@ export default tseslint.config(
     },
   },
 
-  // The demo is a browser app.
+  // The web client is a browser app.
   {
-    files: ['apps/demo/src/**/*.{ts,tsx}', 'apps/demo/vite.config.ts'],
+    files: ['apps/web/src/**/*.{ts,tsx}', 'apps/web/vite.config.ts'],
     languageOptions: {
       globals: { ...globals.browser },
       parserOptions: {
@@ -49,7 +49,7 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       /**
-       * Loading demo data on mount means awaiting a promise and then calling
+       * Loading stored data on mount means awaiting a promise and then calling
        * `setState` from an effect, which is the documented pattern for a client
        * without a framework loader. The rule is aimed at effects that only
        * synchronise state and flags data loading as collateral damage.
