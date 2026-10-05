@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { PaperProvider } from './context/PaperContext';
 import ExamDeptDashboard from './pages/ExamDeptDashboard';
 import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
@@ -66,9 +67,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <PaperProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </PaperProvider>
     </AuthProvider>
   );
 }
