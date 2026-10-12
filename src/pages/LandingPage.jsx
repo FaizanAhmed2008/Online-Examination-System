@@ -47,7 +47,7 @@ const LandingPage = () => {
       step: '03',
       title: 'Schedule & Portal Publishing',
       actor: 'Exam Department Cell',
-      desc: 'Approved question sets are scheduled with synchronized time windows and published securely to verified enrolled students.',
+      desc: 'Approved question sets are scheduled with synchronized time windows and published to enrolled students.',
       icon: Calendar,
       badge: 'Timetable Release',
     },
@@ -73,7 +73,7 @@ const LandingPage = () => {
     {
       icon: ShieldCheck,
       title: 'Multi-Tier Role Governance',
-      description: 'Strict cryptographic separation between Faculty Paper Authors, CoE Officers, and Student Candidates ensures assessment integrity.',
+      description: 'Role-specific views separate faculty authoring, department scheduling, and student exam workflows in this browser-based demo.',
     },
     {
       icon: Layers,
@@ -442,7 +442,7 @@ const LandingPage = () => {
               Purpose-Built Portals for Every Academic Stakeholder
             </h2>
             <p className="text-sm sm:text-base text-slate-600">
-              Three synchronized, secure dashboards designed specifically for university faculty paper setters, examination department officers, and enrolled students.
+              Three role-specific dashboards for faculty paper setters, examination department officers, and enrolled students.
             </p>
           </div>
 
@@ -814,7 +814,7 @@ const LandingPage = () => {
                 </div>
               </div>
               <p className="text-slate-400 leading-relaxed text-xs">
-                Official online examination and proctored CBT assessment system for faculty paper setters, examination department officers, and enrolled students.
+                Demo online examination and timed CBT workflow for faculty paper setters, examination department officers, and enrolled students. Browser monitoring is best-effort and localStorage is not production-grade security.
               </p>
               <div className="flex items-center gap-2 text-slate-400 text-[11px]">
                 <span className="w-2 h-2 rounded-full bg-emerald-400"></span>

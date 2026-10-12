@@ -15,14 +15,51 @@ import {
 import { usePapers } from '../../context/PaperContext';
 import { useAuth } from '../../context/AuthContext';
 
+const shuffleItems = (items) => {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const otherIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[otherIndex]] = [shuffled[otherIndex], shuffled[index]];
+  }
+  return shuffled;
+};
+
+const createShuffledQuestions = (questions) => shuffleItems(questions).map((question) => {
+  const randomizedOptions = shuffleItems(['A', 'B', 'C', 'D'].map((key) => ({
+    originalKey: key,
+    text: question[`option${key}`],
+  })));
+  const shuffledQuestion = { ...question };
+  randomizedOptions.forEach((option, index) => {
+    const key = String.fromCharCode(65 + index);
+    shuffledQuestion[`option${key}`] = option.text;
+    if (option.originalKey === question.correctAnswer) shuffledQuestion.correctAnswer = key;
+  });
+  return shuffledQuestion;
+});
+
 const StudentExam = () => {
-  const { setId } = useParams();
+  const { examId } = useParams();
   const navigate = useNavigate();
-  const { paperSets, submitStudentExam } = usePapers();
+  const { paperSets, scheduledExams, submissions, submitStudentExam, recordViolation } = usePapers();
   const { user } = useAuth();
 
-  const paper = paperSets[setId] || paperSets.SET_A;
-  const questions = paper?.questions || [];
+  const exam = scheduledExams.find((scheduledExam) => scheduledExam.id === examId && scheduledExam.status === 'Published');
+  const paper = exam ? paperSets[exam.setId] : null;
+  const [questions] = useState(() => createShuffledQuestions(paper?.questions || []));
+  const existingSubmission = submissions.find((submission) => submission.studentUsername === user?.username &&
+    (submission.examId === examId || (!submission.examId && exam && submission.setId === exam.setId)));
+  const durationSeconds = paper ? (Number.parseInt(paper.duration?.match(/\d+/)?.[0] || '30', 10) * 60) : 0;
+  const scheduledEnd = exam ? Date.parse(exam.scheduledAt) + durationSeconds * 1000 : 0;
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const initialSeconds = exam
+    ? Math.max(0, Math.min(durationSeconds, Math.ceil((scheduledEnd - currentTime) / 1000)))
+    : 0;
+  const isWithinExamWindow = Boolean(exam && currentTime >= Date.parse(exam.scheduledAt) && currentTime < scheduledEnd);
 
   // Question state management
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -35,17 +72,17 @@ const StudentExam = () => {
   const [showTimeUpModal, setShowTimeUpModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [examResult, setExamResult] = useState(null);
+  const [violationCount, setViolationCount] = useState(0);
+  const [showViolationWarning, setShowViolationWarning] = useState(false);
+  const [fullscreenMessage, setFullscreenMessage] = useState('');
 
-  // Timer setup (parse duration like "30 Minutes" -> 30 * 60 = 1800 seconds)
-  const parseDurationInSeconds = (durationStr) => {
-    if (!durationStr) return 1800;
-    const match = durationStr.match(/\d+/);
-    return match ? parseInt(match[0], 10) * 60 : 1800;
-  };
-
-  const initialSeconds = parseDurationInSeconds(paper?.duration);
   const [timeLeft, setTimeLeft] = useState(initialSeconds);
+  const examStartTime = useRef(Date.now());
   const timerRef = useRef(null);
+  const submitStarted = useRef(false);
+  const violationCountRef = useRef(0);
+  const lastViolationAt = useRef(0);
+  const fullscreenEntered = useRef(false);
 
   // Evaluation and submission calculation
   const calculateResults = useCallback(() => {
@@ -64,13 +101,15 @@ const StudentExam = () => {
 
     const percentage = Math.round((score / (totalMarks || 1)) * 100);
     const answeredCount = Object.keys(answers).length;
-    const timeSpentSeconds = initialSeconds - timeLeft;
+    const timeSpentSeconds = Math.max(0, Math.floor((Date.now() - examStartTime.current) / 1000));
     const timeSpentStr = `${Math.floor(timeSpentSeconds / 60)}m ${timeSpentSeconds % 60}s`;
 
     return {
       studentUsername: user?.username || 'student',
       studentName: user?.name || 'Aarav Sharma',
-      setId: setId || 'SET_A',
+      setId: exam.setId,
+      examId,
+      paperId: exam.paperId,
       examName: paper.examName,
       subject: paper.subject,
       paperSet: paper.paperSet,
@@ -84,17 +123,46 @@ const StudentExam = () => {
       timeSpent: timeSpentStr,
       answers,
     };
-  }, [answers, initialSeconds, paper.examName, paper.paperSet, paper.subject, questions, setId, timeLeft, user?.name, user?.username]);
+  }, [answers, exam?.paperId, exam?.setId, examId, paper?.examName, paper?.paperSet, paper?.subject, questions, timeLeft, user?.name, user?.username]);
 
   const executeSubmission = useCallback(() => {
+    if (submitStarted.current) return;
+    submitStarted.current = true;
     clearInterval(timerRef.current);
     const resultRecord = calculateResults();
-    submitStudentExam(resultRecord);
+    const savedResult = submitStudentExam(resultRecord);
+    if (!savedResult) {
+      const completedResult = submissions.find((submission) => submission.studentUsername === user?.username &&
+        (submission.examId === examId || (!submission.examId && exam && submission.setId === exam.setId)));
+      if (completedResult) {
+        setExamResult(completedResult);
+        setIsSubmitted(true);
+        return;
+      }
+      submitStarted.current = false;
+      return;
+    }
     setExamResult(resultRecord);
     setIsSubmitted(true);
     setShowSubmitModal(false);
     setShowTimeUpModal(false);
-  }, [calculateResults, submitStudentExam]);
+  }, [calculateResults, exam?.setId, examId, submissions, submitStudentExam, user?.username]);
+
+  const handleConfirmedViolation = useCallback(() => {
+    const now = Date.now();
+    if (now - lastViolationAt.current < 500 || isSubmitted || submitStarted.current) return;
+    lastViolationAt.current = now;
+    violationCountRef.current += 1;
+    const nextCount = violationCountRef.current;
+    setViolationCount(nextCount);
+    const action = nextCount >= 2 ? 'auto-submitted' : 'warning';
+    recordViolation(examId, nextCount, action, user?.username);
+    if (nextCount === 1) {
+      setShowViolationWarning(true);
+    } else {
+      executeSubmission();
+    }
+  }, [examId, executeSubmission, isSubmitted, recordViolation, user?.username]);
 
   const handleTimeExpired = useCallback(() => {
     setShowTimeUpModal(true);
@@ -105,7 +173,7 @@ const StudentExam = () => {
 
   // Timer countdown
   useEffect(() => {
-    if (isSubmitted) return;
+    if (isSubmitted || !isWithinExamWindow || existingSubmission) return;
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
@@ -119,7 +187,41 @@ const StudentExam = () => {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [isSubmitted, handleTimeExpired]);
+  }, [existingSubmission, handleTimeExpired, isSubmitted, isWithinExamWindow]);
+
+  useEffect(() => {
+    if (!isWithinExamWindow || isSubmitted || existingSubmission) return undefined;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') handleConfirmedViolation();
+    };
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement) {
+        fullscreenEntered.current = true;
+      } else if (fullscreenEntered.current) {
+        fullscreenEntered.current = false;
+        handleConfirmedViolation();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [existingSubmission, handleConfirmedViolation, isSubmitted, isWithinExamWindow]);
+
+  const requestFullscreen = async () => {
+    if (!document.documentElement.requestFullscreen) {
+      setFullscreenMessage('Fullscreen is unavailable in this browser. Tab-switch monitoring remains active.');
+      return;
+    }
+    try {
+      await document.documentElement.requestFullscreen();
+      setFullscreenMessage('');
+    } catch {
+      setFullscreenMessage('Fullscreen could not be enabled. Tab-switch monitoring remains active.');
+    }
+  };
 
   // Mark current as visited whenever currentIdx changes
   useEffect(() => {
@@ -132,6 +234,43 @@ const StudentExam = () => {
   };
 
   const currentQ = questions[currentIdx] || {};
+
+  if (!exam || !paper) {
+    return (
+      <div className="min-h-screen bg-slate-50 grid place-items-center p-6 text-center">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8">
+          <h2 className="text-xl font-bold text-slate-900">Exam not available</h2>
+          <p className="mt-2 text-sm text-slate-600">This examination has not been published or its paper reference is unavailable.</p>
+          <button onClick={() => navigate('/student/available-exams')} className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Return to available exams</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (existingSubmission && !isSubmitted) {
+    return (
+      <div className="min-h-screen bg-slate-50 grid place-items-center p-6 text-center">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8">
+          <Check className="mx-auto h-10 w-10 text-emerald-600" />
+          <h2 className="mt-3 text-xl font-bold text-slate-900">Exam already completed</h2>
+          <p className="mt-2 text-sm text-slate-600">This completed examination cannot be restarted.</p>
+          <button onClick={() => navigate('/student/results')} className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">View result</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isWithinExamWindow) {
+    return (
+      <div className="min-h-screen bg-slate-50 grid place-items-center p-6 text-center">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8">
+          <h2 className="text-xl font-bold text-slate-900">Exam is not open</h2>
+          <p className="mt-2 text-sm text-slate-600">The examination can only be started during its published schedule.</p>
+          <button onClick={() => navigate('/student/available-exams')} className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Return to available exams</button>
+        </div>
+      </div>
+    );
+  }
 
   // Actions
   const handleSelectOption = (optionKey) => {
@@ -380,6 +519,13 @@ const StudentExam = () => {
               <span>{formatTimer(timeLeft)}</span>
             </div>
 
+            <button
+              onClick={requestFullscreen}
+              className="px-3 py-2 border border-slate-700 hover:bg-slate-800 text-slate-200 rounded-xl text-xs font-semibold"
+            >
+              Fullscreen
+            </button>
+
             {/* Quick Submit Button */}
             <button
               onClick={() => setShowSubmitModal(true)}
@@ -400,6 +546,9 @@ const StudentExam = () => {
           />
         </div>
       </header>
+      {fullscreenMessage && (
+        <div className="bg-amber-50 px-4 py-2 text-center text-xs text-amber-800">{fullscreenMessage}</div>
+      )}
 
       {/* Main Examination View: Split Screen */}
       <div className="flex-1 flex flex-col lg:flex-row max-w-7xl w-full mx-auto p-4 sm:p-6 gap-6">
@@ -675,6 +824,19 @@ const StudentExam = () => {
                 Confirm & Submit
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showViolationWarning && !isSubmitted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 p-4">
+          <div role="alertdialog" aria-modal="true" className="max-w-md rounded-2xl border border-amber-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-8 w-8 text-amber-600" />
+              <h3 className="text-lg font-bold text-slate-900">Exam integrity warning</h3>
+            </div>
+            <p className="mt-3 text-sm text-slate-600">A tab switch or fullscreen exit was detected ({violationCount} of 2). A second confirmed violation will automatically submit your exam.</p>
+            <button onClick={() => setShowViolationWarning(false)} className="mt-5 w-full rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white">Return to examination</button>
           </div>
         </div>
       )}

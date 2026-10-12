@@ -51,7 +51,10 @@ const PaperSetEdit = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    updatePaperSet(setId, formData);
+    if (paper.locked || !updatePaperSet(setId, formData)) {
+      setToast({ show: true, message: 'Submitted paper settings are locked and cannot be changed.' });
+      return;
+    }
     setToast({ show: true, message: `Paper Set ${formData.paperSet} metadata updated successfully.` });
     setTimeout(() => {
       navigate('/teacher/question-papers');
@@ -101,6 +104,11 @@ const PaperSetEdit = () => {
           Configure exam nomenclature, timing constraints, and maximum marks weightage
         </p>
       </div>
+      {paper.locked && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          This paper has been submitted and is locked against editing.
+        </div>
+      )}
 
       {/* Form Card */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 sm:p-8">
@@ -115,6 +123,7 @@ const PaperSetEdit = () => {
               name="examName"
               value={formData.examName}
               onChange={handleChange}
+              disabled={paper.locked}
               required
               className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition text-sm text-slate-900"
             />
@@ -131,6 +140,7 @@ const PaperSetEdit = () => {
                 name="subject"
                 value={formData.subject}
                 onChange={handleChange}
+                disabled={paper.locked}
                 required
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition text-sm text-slate-900"
               />
@@ -163,6 +173,7 @@ const PaperSetEdit = () => {
                 name="duration"
                 value={formData.duration}
                 onChange={handleChange}
+                disabled={paper.locked}
                 required
                 placeholder="e.g., 30 Minutes"
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition text-sm text-slate-900"
@@ -179,6 +190,7 @@ const PaperSetEdit = () => {
                 name="totalMarks"
                 value={formData.totalMarks}
                 onChange={handleChange}
+                disabled={paper.locked}
                 min="1"
                 required
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition text-sm text-slate-900 font-semibold"
@@ -194,13 +206,15 @@ const PaperSetEdit = () => {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md shadow-blue-600/20 transition-all text-xs flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Configuration</span>
-            </button>
+            {!paper.locked && (
+              <button
+                type="submit"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md shadow-blue-600/20 transition-all text-xs flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                <span>Save Configuration</span>
+              </button>
+            )}
           </div>
         </form>
       </div>

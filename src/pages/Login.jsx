@@ -95,7 +95,10 @@ const Login = () => {
               Online Examination & Assessment Portal
             </h1>
             <p className="text-sm text-blue-100/80 leading-relaxed mb-6">
-              A high-security, university-grade platform for authoring question papers, scheduling exams, and conducting proctored digital assessments.
+              A demo prototype for authoring question papers, scheduling exams, and conducting timed digital assessments.
+            </p>
+            <p className="text-xs text-amber-100/90 leading-relaxed mb-6 border-l-2 border-amber-300 pl-3">
+              Demo limitation: data is stored in this browser. Tab and fullscreen monitoring is best-effort and cannot prevent all cheating; this prototype is not production-grade security.
             </p>
 
             <div className="space-y-3 pt-2">

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Route, Routes, Link, useNavigate, Navigate } from 'react-router-dom';
 import {
   BookOpen,
@@ -21,19 +22,34 @@ const navItems = [
 ];
 
 const StudentHome = () => {
-  const { paperSets, submissions } = usePapers();
+  const { paperSets, submissions, scheduledExams } = usePapers();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Find published exams
-  const publishedExams = Object.entries(paperSets).filter(
-    ([_, p]) => p.status === 'Published'
-  );
+  const publishedExams = scheduledExams
+    .filter((exam) => exam.status === 'Published')
+    .map((exam) => [exam.id, paperSets[exam.setId], exam])
+    .filter(([, paper]) => Boolean(paper));
 
   // Student's own submissions
   const studentSubs = submissions.filter(
-    (s) => s.studentUsername === user?.username || s.studentUsername === 'student'
+    (s) => s.studentUsername === user?.username
   );
+  const hasCompletedExam = (examId, setId) => studentSubs.some(
+    (submission) => submission.examId === examId || (!submission.examId && submission.setId === setId)
+  );
+  const openExam = publishedExams.find(([, paper, exam]) => {
+    const started = now >= Date.parse(exam.scheduledAt);
+    const durationSeconds = Number.parseInt(paper.duration?.match(/\d+/)?.[0] || '30', 10) * 60;
+    const notExpired = now < Date.parse(exam.scheduledAt) + durationSeconds * 1000;
+    const notCompleted = !hasCompletedExam(exam.id, exam.setId);
+    return started && notExpired && notCompleted;
+  });
 
   const completedCount = studentSubs.length;
   const latestSub = studentSubs[0];
@@ -104,7 +120,7 @@ const StudentHome = () => {
       </div>
 
       {/* Featured Active Exam Ready to Take */}
-      {publishedExams.length > 0 && (
+      {openExam && (
         <div className="bg-white rounded-2xl border border-blue-200/90 p-6 shadow-sm relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -114,19 +130,19 @@ const StudentHome = () => {
                   Ready to Take Now
                 </span>
                 <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-mono text-[11px] font-bold border border-blue-200">
-                  {publishedExams[0][1].paperSet}
+                  Published
                 </span>
               </div>
               <h3 className="text-xl font-bold text-slate-900">
-                {publishedExams[0][1].examName}
+                {openExam[1].examName}
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Subject: <span className="font-semibold text-slate-700">{publishedExams[0][1].subject}</span> &middot; {publishedExams[0][1].questions.length} Questions &middot; {publishedExams[0][1].duration}
+                Subject: <span className="font-semibold text-slate-700">{openExam[1].subject}</span> &middot; {openExam[1].questions.length} Questions &middot; {openExam[1].duration}
               </p>
             </div>
 
             <button
-              onClick={() => navigate(`/student/exam/${publishedExams[0][0]}`)}
+              onClick={() => navigate(`/student/exam/${openExam[0]}`)}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-600/25 transition-all self-start md:self-center"
             >
               <span>Launch Examination</span>
@@ -167,6 +183,10 @@ const StudentHome = () => {
             <li className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
               <span>Unsubmitted tests will automatically submit when the allotted timer expires.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+              <span>This demo stores data in this browser. Tab and fullscreen monitoring is best-effort and cannot prevent all cheating.</span>
             </li>
           </ul>
         </div>
@@ -217,12 +237,24 @@ const StudentHome = () => {
 
 // Available Exams View
 const AvailableExams = () => {
-  const { paperSets } = usePapers();
+  const { paperSets, scheduledExams, submissions } = usePapers();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [now, setNow] = useState(Date.now());
 
-  const publishedExams = Object.entries(paperSets).filter(
-    ([_, p]) => p.status === 'Published'
-  );
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const publishedExams = scheduledExams
+    .filter((exam) => exam.status === 'Published')
+    .map((exam) => [exam.id, paperSets[exam.setId], exam])
+    .filter(([, paper]) => Boolean(paper))
+    .filter(([examId, , exam]) => !submissions.some(
+      (submission) => submission.studentUsername === user?.username &&
+        (submission.examId === examId || (!submission.examId && submission.setId === exam.setId))
+    ));
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -245,16 +277,20 @@ const AvailableExams = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {publishedExams.map(([key, paper]) => (
+          {publishedExams.map(([examId, paper, exam]) => {
+            const startsAt = Date.parse(exam.scheduledAt);
+            const durationSeconds = Number.parseInt(paper.duration?.match(/\d+/)?.[0] || '30', 10) * 60;
+            const canStart = now >= startsAt && now < startsAt + durationSeconds * 1000;
+            return (
             <div
-              key={key}
+              key={examId}
               className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs flex flex-col justify-between hover:border-blue-300 transition-all"
             >
               <div>
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
-                      {paper.paperSet}
+                      Published
                     </span>
                     <h4 className="text-base font-bold text-slate-900 mt-2">
                       {paper.examName}
@@ -262,12 +298,13 @@ const AvailableExams = () => {
                   </div>
                   <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Live
+                    {canStart ? 'Open' : now < startsAt ? 'Upcoming' : 'Closed'}
                   </span>
                 </div>
 
                 <p className="text-xs text-slate-600 mb-5">
                   Subject: <span className="font-semibold text-slate-800">{paper.subject}</span>
+                  <span className="block mt-1">Starts: {new Date(exam.scheduledAt).toLocaleString()}</span>
                 </p>
 
                 <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs mb-6">
@@ -281,20 +318,21 @@ const AvailableExams = () => {
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase">Marks</span>
-                    <span className="font-bold text-slate-800">{paper.totalMarks}M</span>
+                    <span className="font-bold text-slate-800">{paper.questions.reduce((total, question) => total + (question.marks || 0), 0)}M</span>
                   </div>
                 </div>
               </div>
 
               <button
-                onClick={() => navigate(`/student/exam/${key}`)}
+                disabled={!canStart}
+                onClick={() => navigate(`/student/exam/${examId}`)}
                 className="w-full inline-flex justify-center items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
               >
-                <span>Start Examination</span>
+                <span>{canStart ? 'Start Examination' : now < startsAt ? 'Not Started' : 'Exam Closed'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
-          ))}
+          );})}
         </div>
       )}
     </div>
@@ -306,9 +344,7 @@ const MyExams = () => {
   const { submissions } = usePapers();
   const { user } = useAuth();
 
-  const studentSubs = submissions.filter(
-    (s) => s.studentUsername === user?.username || s.studentUsername === 'student'
-  );
+  const studentSubs = submissions.filter((s) => s.studentUsername === user?.username);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -373,9 +409,7 @@ const StudentResults = () => {
   const { submissions } = usePapers();
   const { user } = useAuth();
 
-  const studentSubs = submissions.filter(
-    (s) => s.studentUsername === user?.username || s.studentUsername === 'student'
-  );
+  const studentSubs = submissions.filter((s) => s.studentUsername === user?.username);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
@@ -494,7 +528,7 @@ const StudentDashboard = () => {
   return (
     <Routes>
       {/* Distraction-free Exam View */}
-      <Route path="exam/:setId" element={<StudentExam />} />
+      <Route path="exam/:examId" element={<StudentExam />} />
 
       {/* Main Layout Views */}
       <Route

@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ShieldCheck,
   Send,
-  Check,
   ChevronRight,
 } from 'lucide-react';
 import DashboardCard from '../components/DashboardCard';
@@ -40,30 +39,14 @@ const getStatusBadge = (status) => {
 };
 
 const ExamDeptHome = () => {
-  const { paperSets, submissions, publishPaperSet } = usePapers();
-  const [toast, setToast] = useState({ show: false, message: '' });
+  const { paperSubmissions, scheduledExams, submissions } = usePapers();
 
-  const totalSets = Object.keys(paperSets).length;
-  const publishedCount = Object.values(paperSets).filter((p) => p.status === 'Published').length;
-  const pendingReview = Object.entries(paperSets).filter(([, p]) => p.status === 'Submitted');
-
-  const handleQuickPublish = (key, name) => {
-    publishPaperSet(key);
-    setToast({
-      show: true,
-      message: `${name} has been approved and published to all eligible student portals!`,
-    });
-  };
+  const totalSets = paperSubmissions.length;
+  const publishedCount = scheduledExams.filter((exam) => exam.status === 'Published').length;
+  const pendingReview = paperSubmissions.filter((paper) => paper.status === 'Submitted');
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          onClose={() => setToast({ show: false, message: '' })}
-        />
-      )}
-
       {/* Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 rounded-2xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
@@ -75,7 +58,7 @@ const ExamDeptHome = () => {
             Examination Cell Administration
           </h2>
           <p className="text-sm text-indigo-100/90 leading-relaxed mb-6">
-            Review faculty submitted question paper sets, approve confidential sets, publish active examinations, and monitor institutional candidate scorecards.
+            Schedule anonymized submitted paper references, publish exams, and monitor institutional candidate scorecards.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -159,36 +142,29 @@ const ExamDeptHome = () => {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {pendingReview.map(([key, paper]) => (
+            {pendingReview.map((paper) => (
               <div
-                key={key}
+                key={paper.paperId}
                 className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors"
               >
                 <div>
                   <div className="flex items-center gap-2.5">
-                    <span className="font-bold text-slate-900 text-sm">
-                      {paper.paperSet}
-                    </span>
-                    <span className="text-xs font-mono text-slate-500">
-                      ({paper.subject})
+                    <span className="font-mono font-bold text-slate-900 text-sm">
+                      {paper.paperId}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                      Awaiting Moderation
+                      {paper.status}
                     </span>
                   </div>
                   <p className="text-xs text-slate-600 mt-1">
-                    {paper.examName} &middot; {paper.questions.length} Questions &middot; {paper.totalMarks} Marks
+                    {paper.totalQuestions} Questions &middot; {paper.totalMarks} Marks
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0">
-                  <button
-                    onClick={() => handleQuickPublish(key, paper.paperSet)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Approve & Publish</span>
-                  </button>
+                  <Link to="/examdept/schedule" className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors">
+                    <Calendar className="w-3.5 h-3.5" /><span>Schedule</span>
+                  </Link>
                 </div>
               </div>
             ))}
@@ -267,35 +243,17 @@ const ExamDeptHome = () => {
 
 // Paper Sets View for Exam Dept
 const ExamDeptPaperSets = () => {
-  const { paperSets, publishPaperSet, approvePaperSet } = usePapers();
-  const [toast, setToast] = useState({ show: false, message: '' });
-
-  const handlePublish = (key, name) => {
-    publishPaperSet(key);
-    setToast({ show: true, message: `${name} has been published successfully!` });
-  };
-
-  const handleApprove = (key, name) => {
-    approvePaperSet(key);
-    setToast({ show: true, message: `${name} marked as Approved.` });
-  };
+  const { paperSubmissions } = usePapers();
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          onClose={() => setToast({ show: false, message: '' })}
-        />
-      )}
-
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-slate-900">
-            Institutional Paper Set Registry
+            Anonymized Paper Reference Registry
           </h3>
           <p className="text-xs text-slate-500">
-            Review status, approve question sets, and publish examinations to student portals
+            Only paper reference, question count, total marks, and status are available to this role.
           </p>
         </div>
       </div>
@@ -305,30 +263,22 @@ const ExamDeptPaperSets = () => {
           <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
             <thead className="bg-slate-50 text-slate-500 text-xs font-semibold uppercase tracking-wider">
               <tr>
-                <th className="px-6 py-3.5">Set Code</th>
-                <th className="px-6 py-3.5">Exam Name & Subject</th>
-                <th className="px-6 py-3.5">Questions</th>
-                <th className="px-6 py-3.5">Duration</th>
+                <th className="px-6 py-3.5">Paper Reference</th>
+                <th className="px-6 py-3.5">Question Count</th>
+                <th className="px-6 py-3.5">Total Marks</th>
                 <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5 text-right">Administrative Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {Object.entries(paperSets).map(([key, paper]) => (
-                <tr key={key} className="hover:bg-slate-50/60 transition-colors">
+              {paperSubmissions.map((paper) => (
+                <tr key={paper.paperId} className="hover:bg-slate-50/60 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-900">
-                    {paper.paperSet}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-semibold text-slate-800">{paper.examName}</div>
-                    <div className="text-xs text-slate-500 font-mono">{paper.subject}</div>
+                    <span className="font-mono">{paper.paperId}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-slate-700 font-medium">
-                    {paper.questions?.length || 0} Questions ({paper.totalMarks} Marks)
+                    {paper.totalQuestions}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-slate-600">
-                    {paper.duration}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-slate-700 font-medium">{paper.totalMarks}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(
@@ -338,45 +288,6 @@ const ExamDeptPaperSets = () => {
                       <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-70"></span>
                       {paper.status}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
-                    {paper.status === 'Submitted' && (
-                      <div className="inline-flex gap-1.5">
-                        <button
-                          onClick={() => handleApprove(key, paper.paperSet)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-                        >
-                          <Check className="w-3 h-3" />
-                          <span>Approve Set</span>
-                        </button>
-                        <button
-                          onClick={() => handlePublish(key, paper.paperSet)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-                        >
-                          <Send className="w-3 h-3" />
-                          <span>Publish Live</span>
-                        </button>
-                      </div>
-                    )}
-                    {paper.status === 'Approved' && (
-                      <button
-                        onClick={() => handlePublish(key, paper.paperSet)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-                      >
-                        <Send className="w-3 h-3" />
-                        <span>Publish to Portal</span>
-                      </button>
-                    )}
-                    {paper.status === 'Published' && (
-                      <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-lg border border-blue-200">
-                        Live on Portal
-                      </span>
-                    )}
-                    {paper.status === 'Draft' && (
-                      <span className="text-xs font-medium text-slate-400 italic">
-                        Authoring in Progress
-                      </span>
-                    )}
                   </td>
                 </tr>
               ))}
@@ -390,9 +301,7 @@ const ExamDeptPaperSets = () => {
 
 // Examinations List
 const ExamDeptExaminations = () => {
-  const { paperSets } = usePapers();
-  const publishedSets = Object.entries(paperSets).filter(([, p]) => p.status === 'Published');
-  const otherSets = Object.entries(paperSets).filter(([, p]) => p.status !== 'Published');
+  const { paperSubmissions, scheduledExams } = usePapers();
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -401,183 +310,128 @@ const ExamDeptExaminations = () => {
           Scheduled Institutional Examinations
         </h3>
         <p className="text-xs text-slate-500">
-          Active session computer-based test configurations and session parameters
+          Published examinations with anonymized paper references and permitted metadata
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {publishedSets.map(([key, paper]) => (
-          <div key={key} className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs relative overflow-hidden">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                  {key}
-                </span>
-                <h4 className="text-base font-bold text-slate-900 mt-2">
-                  {paper.examName} ({paper.paperSet})
-                </h4>
-                <p className="text-xs text-slate-500">Department of Computer Engineering & IT</p>
+      {scheduledExams.filter((exam) => exam.status === 'Published').length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+          No examinations have been published.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {scheduledExams.filter((exam) => exam.status === 'Published').map((exam) => {
+            const paper = paperSubmissions.find((submission) => submission.paperId === exam.paperId);
+            if (!paper) return null;
+            return (
+              <div key={exam.id} className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-mono text-sm font-bold text-slate-900">{paper.paperId}</span>
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    {exam.status}
+                  </span>
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 text-center text-xs">
+                  <div><span className="block text-slate-500">Questions</span><strong>{paper.totalQuestions}</strong></div>
+                  <div><span className="block text-slate-500">Total Marks</span><strong>{paper.totalMarks}</strong></div>
+                  <div><span className="block text-slate-500">Scheduled</span><strong>{new Date(exam.scheduledAt).toLocaleString()}</strong></div>
+                </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Active Session
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs mb-4">
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase">Subject</span>
-                <span className="font-bold text-slate-800 truncate block">{paper.subject}</span>
-              </div>
-              <div className="border-x border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase">Registered</span>
-                <span className="font-bold text-slate-800">120 Students</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase">Duration</span>
-                <span className="font-bold text-slate-800">{paper.duration}</span>
-              </div>
-            </div>
-
-            <div className="text-xs text-slate-600 flex items-center justify-between border-t border-slate-100 pt-3">
-              <span>Proctoring: <strong>AI Auto-Invigilation</strong></span>
-              <span className="text-emerald-700 font-semibold">Live on Portals</span>
-            </div>
-          </div>
-        ))}
-
-        {otherSets.map(([key, paper]) => (
-          <div key={key} className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs opacity-90">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                  {key}
-                </span>
-                <h4 className="text-base font-bold text-slate-900 mt-2">
-                  {paper.examName} ({paper.paperSet})
-                </h4>
-                <p className="text-xs text-slate-500">Department of Computer Engineering & IT</p>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                {paper.status === 'Submitted' ? 'Awaiting Approval' : 'Draft / Preparing'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs mb-4">
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase">Paper Set</span>
-                <span className="font-bold text-slate-800">{paper.paperSet}</span>
-              </div>
-              <div className="border-x border-slate-200">
-                <span className="text-slate-400 block text-[10px] uppercase">Questions</span>
-                <span className="font-bold text-slate-800">{paper.questions?.length || 0}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase">Duration</span>
-                <span className="font-bold text-slate-800">{paper.duration}</span>
-              </div>
-            </div>
-
-            <div className="text-xs text-slate-500 flex items-center justify-between border-t border-slate-100 pt-3">
-              <span>Status: <strong>{paper.status}</strong></span>
-              <span>Subject: {paper.subject}</span>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
+      )}
       </div>
-    </div>
   );
 };
 
 // Exam Timetable Schedule
 const ExamDeptSchedule = () => {
-  const scheduleData = [
-    {
-      course: 'Software Engineering (CS-302)',
-      date: 'Today / Ongoing',
-      timeSlot: '10:00 AM - 12:00 PM',
-      mode: 'Online CBT Portal',
-      invigilator: 'Dr. Priya Patil / AI Auto-Proctor',
-      status: 'Live',
-    },
-    {
-      course: 'Database Management Systems (CS-304)',
-      date: 'Tomorrow',
-      timeSlot: '02:00 PM - 03:30 PM',
-      mode: 'Exam Lab Block 3',
-      invigilator: 'Prof. Rahul Verma',
-      status: 'Scheduled',
-    },
-    {
-      course: 'Computer Networks (CS-306)',
-      date: 'In 3 Days',
-      timeSlot: '10:00 AM - 11:30 AM',
-      mode: 'Online CBT Portal',
-      invigilator: 'Prof. Rohan Deshmukh',
-      status: 'Scheduled',
-    },
-    {
-      course: 'Design & Analysis of Algorithms (CS-301)',
-      date: 'In 5 Days',
-      timeSlot: '02:00 PM - 03:30 PM',
-      mode: 'Online CBT Portal',
-      invigilator: 'Dr. Aditi Kulkarni',
-      status: 'Scheduled',
-    },
-  ];
+  const { paperSubmissions, scheduledExams, scheduleExam, publishExam } = usePapers();
+  const [paperId, setPaperId] = useState('');
+  const [scheduledAt, setScheduledAt] = useState('');
+  const [message, setMessage] = useState('');
+  const availablePapers = paperSubmissions.filter((paper) => paper.status === 'Submitted');
+
+  const handleSchedule = (event) => {
+    event.preventDefault();
+    const exam = scheduleExam(paperId, scheduledAt);
+    setMessage(exam ? 'Exam scheduled.' : 'Unable to schedule this paper. Choose an available reference and a valid date and time.');
+    if (exam) {
+      setPaperId('');
+      setScheduledAt('');
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h3 className="text-lg font-bold text-slate-900">
-          Institutional Examination Timetable
+          Institutional Examination Schedule
         </h3>
         <p className="text-xs text-slate-500">
-          Mid-term and internal assessment schedule for undergraduate engineering
+          Select an anonymized paper reference and schedule its examination.
         </p>
       </div>
+
+      <form onSubmit={handleSchedule} className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-end">
+        <label className="flex-1 text-xs font-semibold text-slate-700">
+          Paper Reference
+          <select required value={paperId} onChange={(event) => setPaperId(event.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+            <option value="">Select a submitted paper</option>
+            {availablePapers.map((paper) => <option key={paper.paperId} value={paper.paperId}>{paper.paperId}</option>)}
+          </select>
+        </label>
+        <label className="flex-1 text-xs font-semibold text-slate-700">
+          Exam Start
+          <input required type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        </label>
+        <button type="submit" disabled={!availablePapers.length} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+          Schedule Exam
+        </button>
+        {message && <p role="status" className="text-xs text-slate-600">{message}</p>}
+      </form>
 
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-100 text-left text-sm">
             <thead className="bg-slate-50 text-slate-500 text-xs font-semibold uppercase tracking-wider">
               <tr>
-                <th className="px-6 py-3.5">Course & Code</th>
-                <th className="px-6 py-3.5">Date & Time Slot</th>
-                <th className="px-6 py-3.5">Venue / Mode</th>
-                <th className="px-6 py-3.5">Invigilator</th>
-                <th className="px-6 py-3.5 text-right">Status</th>
+                <th className="px-6 py-3.5">Paper Reference</th>
+                <th className="px-6 py-3.5">Questions</th>
+                <th className="px-6 py-3.5">Total Marks</th>
+                <th className="px-6 py-3.5">Date & Time</th>
+                <th className="px-6 py-3.5">Status</th>
+                <th className="px-6 py-3.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {scheduleData.map((s, i) => (
-                <tr key={i} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-6 py-4 font-bold text-slate-900">
-                    {s.course}
-                  </td>
-                  <td className="px-6 py-4 text-xs text-slate-700">
-                    <div className="font-semibold">{s.date}</div>
-                    <div className="text-slate-500 font-mono">{s.timeSlot}</div>
-                  </td>
-                  <td className="px-6 py-4 text-xs text-slate-600">
-                    {s.mode}
-                  </td>
-                  <td className="px-6 py-4 text-xs text-slate-700">
-                    {s.invigilator}
-                  </td>
-                  <td className="px-6 py-4 text-right whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                        s.status === 'Live'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-slate-100 text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      {s.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {scheduledExams.map((exam) => {
+                const paper = paperSubmissions.find((submission) => submission.paperId === exam.paperId);
+                if (!paper) return null;
+                return (
+                  <tr key={exam.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-6 py-4 font-mono font-bold text-slate-900">{paper.paperId}</td>
+                    <td className="px-6 py-4">{paper.totalQuestions}</td>
+                    <td className="px-6 py-4">{paper.totalMarks}</td>
+                    <td className="px-6 py-4 text-xs">{new Date(exam.scheduledAt).toLocaleString()}</td>
+                    <td className="px-6 py-4">{exam.status}</td>
+                    <td className="px-6 py-4 text-right">
+                      {exam.status === 'Scheduled' && (
+                        <button type="button" onClick={() => {
+                          const published = publishExam(exam.id);
+                          setMessage(published ? 'Exam published to students.' : 'Unable to publish this exam.');
+                        }} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
+                          <Send className="h-3 w-3" /> Publish
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {scheduledExams.length === 0 && (
+                <tr><td colSpan="6" className="px-6 py-8 text-center text-sm text-slate-500">No exams have been scheduled.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -588,7 +442,7 @@ const ExamDeptSchedule = () => {
 
 // Results & Moderation View
 const ExamDeptResults = () => {
-  const { submissions } = usePapers();
+  const { submissions, paperSubmissions, scheduledExams } = usePapers();
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -609,7 +463,7 @@ const ExamDeptResults = () => {
             <thead className="bg-slate-50 text-slate-500 text-xs font-semibold uppercase tracking-wider">
               <tr>
                 <th className="px-6 py-3.5">Candidate</th>
-                <th className="px-6 py-3.5">Examination & Set</th>
+                <th className="px-6 py-3.5">Paper Reference</th>
                 <th className="px-6 py-3.5">Score / Max</th>
                 <th className="px-6 py-3.5">Percentage</th>
                 <th className="px-6 py-3.5">Submitted At</th>
@@ -619,6 +473,10 @@ const ExamDeptResults = () => {
             <tbody className="divide-y divide-slate-100 bg-white">
               {submissions.map((sub) => {
                 const isPass = sub.percentage >= 40;
+                const exam = scheduledExams.find((scheduledExam) => scheduledExam.id === sub.examId);
+                const paper = paperSubmissions.find((submission) =>
+                  submission.paperId === (exam?.paperId || sub.paperId)
+                ) || paperSubmissions.find((submission) => submission.setId === sub.setId);
                 return (
                   <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -626,8 +484,7 @@ const ExamDeptResults = () => {
                       <div className="text-xs text-slate-500 font-mono">User: {sub.studentUsername}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-800">{sub.examName}</div>
-                      <div className="text-xs text-slate-500 font-mono">{sub.paperSet} &middot; {sub.subject}</div>
+                      <div className="font-mono text-xs font-semibold text-slate-800">{paper?.paperId || 'Unmapped'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-900">
                       {sub.score} / {sub.totalMarks}

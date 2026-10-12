@@ -10,7 +10,8 @@ const initialPaperSets = {
     paperSet: 'Set A',
     duration: '30 Minutes',
     totalMarks: 20,
-    status: 'Published',
+    status: 'Draft',
+    locked: false,
     questions: dummyQuestions.SET_A.map((q) => ({ ...q })),
   },
   SET_B: {
@@ -19,7 +20,8 @@ const initialPaperSets = {
     paperSet: 'Set B',
     duration: '30 Minutes',
     totalMarks: 20,
-    status: 'Submitted',
+    status: 'Draft',
+    locked: false,
     questions: dummyQuestions.SET_B.map((q) => ({ ...q })),
   },
   SET_C: {
@@ -29,6 +31,7 @@ const initialPaperSets = {
     duration: '30 Minutes',
     totalMarks: 20,
     status: 'Draft',
+    locked: false,
     questions: dummyQuestions.SET_C.map((q) => ({ ...q })),
   },
 };
@@ -131,121 +134,207 @@ const initialSubmissions = [
   },
 ];
 
+const createPaperReference = () => {
+  const token = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `P-${token.replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+};
+
+const readStoredArray = (key, fallback) => {
+  const stored = localStorage.getItem(key);
+  if (!stored) return fallback;
+  try {
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export const PaperProvider = ({ children }) => {
   const [paperSets, setPaperSets] = useState(initialPaperSets);
   const [submissions, setSubmissions] = useState(initialSubmissions);
+  const [paperSubmissions, setPaperSubmissions] = useState([]);
+  const [scheduledExams, setScheduledExams] = useState([]);
+  const [auditLog, setAuditLog] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('oes_papers');
-    if (stored) {
+    const storedPapers = localStorage.getItem('oes_papers');
+    let loadedPapers = initialPaperSets;
+    if (storedPapers) {
       try {
-        const parsed = JSON.parse(stored);
-        setPaperSets({ ...initialPaperSets, ...parsed });
+        loadedPapers = { ...initialPaperSets, ...JSON.parse(storedPapers) };
       } catch {
-        setPaperSets(initialPaperSets);
+        loadedPapers = initialPaperSets;
       }
     }
 
-    const storedSubmissions = localStorage.getItem('oes_submissions');
-    if (storedSubmissions) {
-      try {
-        const parsedSubs = JSON.parse(storedSubmissions);
-        if (Array.isArray(parsedSubs) && parsedSubs.length > 0) {
-          // Sanitize legacy "Student Demo" submissions
-          const sanitizedSubs = parsedSubs.map((sub) => {
-            if (sub.studentName === 'Student Demo') {
-              return {
-                ...sub,
-                studentName: 'Aarav Sharma',
-                examName: sub.examName?.replace('(Demo Trial)', '').trim() || 'Software Engineering Mid-Term Examination',
-              };
-            }
-            return sub;
-          });
-          setSubmissions(sanitizedSubs);
-        }
-      } catch {
-        setSubmissions(initialSubmissions);
-      }
-    }
+    const savedPaperSubmissions = readStoredArray('oes_paper_submissions', []);
+    const migratedPaperSubmissions = [...savedPaperSubmissions];
+    const migratedPapers = { ...loadedPapers };
 
+    Object.entries(migratedPapers).forEach(([setId, paper]) => {
+      const savedSubmission = migratedPaperSubmissions.find((submission) => submission.setId === setId);
+      if (savedSubmission) {
+        migratedPapers[setId] = { ...paper, status: savedSubmission.status, locked: true };
+      } else if (paper.status === 'Submitted' || paper.status === 'Approved' || paper.status === 'Published') {
+        migratedPapers[setId] = { ...paper, status: 'Submitted', locked: true };
+        migratedPaperSubmissions.push({
+          paperId: createPaperReference(),
+          setId,
+          status: 'Submitted',
+          totalQuestions: paper.questions?.length || 0,
+          totalMarks: paper.questions?.reduce((sum, question) => sum + (question.marks || 0), 0) || paper.totalMarks || 0,
+          submittedAt: new Date().toISOString(),
+        });
+      } else if (paper.status !== 'Draft') {
+        migratedPapers[setId] = { ...paper, locked: true };
+      } else {
+        migratedPapers[setId] = { ...paper, locked: false };
+      }
+    });
+
+    setPaperSets(migratedPapers);
+    setSubmissions(readStoredArray('oes_submissions', initialSubmissions).map((submission) => {
+      if (submission.studentName === 'Student Demo') {
+        return {
+          ...submission,
+          studentName: 'Aarav Sharma',
+          examName: submission.examName?.replace('(Demo Trial)', '').trim() || 'Software Engineering Mid-Term Examination',
+        };
+      }
+      return submission;
+    }));
+    setPaperSubmissions(migratedPaperSubmissions);
+    setScheduledExams(readStoredArray('oes_scheduled_exams', []));
+    setAuditLog(readStoredArray('oes_audit_log', []));
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('oes_papers', JSON.stringify(paperSets));
-    }
-  }, [paperSets, isLoaded]);
+    if (!isLoaded) return;
+    localStorage.setItem('oes_papers', JSON.stringify(paperSets));
+    localStorage.setItem('oes_submissions', JSON.stringify(submissions));
+    localStorage.setItem('oes_paper_submissions', JSON.stringify(paperSubmissions));
+    localStorage.setItem('oes_scheduled_exams', JSON.stringify(scheduledExams));
+    localStorage.setItem('oes_audit_log', JSON.stringify(auditLog));
+  }, [paperSets, submissions, paperSubmissions, scheduledExams, auditLog, isLoaded]);
 
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('oes_submissions', JSON.stringify(submissions));
-    }
-  }, [submissions, isLoaded]);
+  const addAuditEvent = (event) => {
+    setAuditLog((previous) => [
+      { id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, occurredAt: new Date().toISOString(), ...event },
+      ...previous,
+    ]);
+  };
 
   const updatePaperSet = (setKey, data) => {
-    setPaperSets((prev) => ({
-      ...prev,
+    if (!paperSets[setKey] || paperSets[setKey].locked || paperSets[setKey].status !== 'Draft') return false;
+    const editableFields = ['examName', 'subject', 'duration', 'totalMarks'];
+    setPaperSets((previous) => ({
+      ...previous,
       [setKey]: {
-        ...prev[setKey],
-        ...data,
+        ...previous[setKey],
+        ...Object.fromEntries(editableFields.filter((field) => field in data).map((field) => [field, data[field]])),
       },
     }));
+    return true;
   };
 
   const updateQuestions = (setKey, questions) => {
-    setPaperSets((prev) => ({
-      ...prev,
+    if (!paperSets[setKey] || paperSets[setKey].locked || paperSets[setKey].status !== 'Draft') return false;
+    setPaperSets((previous) => ({
+      ...previous,
       [setKey]: {
-        ...prev[setKey],
-        questions: questions.map((q, idx) => ({
-          ...q,
-          id: q.id || idx + 1,
-        })),
+        ...previous[setKey],
+        questions: questions.map((question, index) => ({ ...question, id: question.id || index + 1 })),
       },
     }));
+    return true;
   };
 
   const submitPaperSet = (setKey) => {
-    setPaperSets((prev) => ({
-      ...prev,
-      [setKey]: {
-        ...prev[setKey],
-        status: 'Submitted',
-      },
-    }));
+    const paper = paperSets[setKey];
+    if (!paper || paper.locked || paper.status !== 'Draft' || paperSubmissions.some((submission) => submission.setId === setKey)) {
+      return null;
+    }
+    const paperSubmission = {
+      paperId: createPaperReference(),
+      setId: setKey,
+      status: 'Submitted',
+      totalQuestions: paper.questions.length,
+      totalMarks: paper.questions.reduce((sum, question) => sum + (question.marks || 0), 0),
+      submittedAt: new Date().toISOString(),
+    };
+    setPaperSubmissions((previous) => [...previous, paperSubmission]);
+    setPaperSets((previous) => ({ ...previous, [setKey]: { ...previous[setKey], status: 'Submitted', locked: true } }));
+    addAuditEvent({ type: 'paper-submitted', paperId: paperSubmission.paperId, status: paperSubmission.status });
+    return paperSubmission;
   };
 
-  const approvePaperSet = (setKey) => {
-    setPaperSets((prev) => ({
-      ...prev,
-      [setKey]: {
-        ...prev[setKey],
-        status: 'Approved',
-      },
+  const submitAllPaperSets = () => {
+    const setEntries = Object.entries(paperSets);
+    if (setEntries.length !== 3 || setEntries.some(([, paper]) => paper.status !== 'Draft' || paper.locked)) return false;
+    if (paperSubmissions.some((submission) => setEntries.some(([setId]) => submission.setId === setId))) return false;
+    const now = new Date().toISOString();
+    const newSubmissions = setEntries.map(([setId, paper]) => ({
+      paperId: createPaperReference(),
+      setId,
+      status: 'Submitted',
+      totalQuestions: paper.questions.length,
+      totalMarks: paper.questions.reduce((sum, question) => sum + (question.marks || 0), 0),
+      submittedAt: now,
     }));
+    setPaperSubmissions((previous) => [...previous, ...newSubmissions]);
+    setPaperSets((previous) => Object.fromEntries(
+      Object.entries(previous).map(([setId, paper]) => [setId, { ...paper, status: 'Submitted', locked: true }])
+    ));
+    newSubmissions.forEach((submission) => addAuditEvent({
+      type: 'paper-submitted',
+      paperId: submission.paperId,
+      status: submission.status,
+    }));
+    return true;
   };
 
-  const publishPaperSet = (setKey) => {
-    setPaperSets((prev) => ({
-      ...prev,
-      [setKey]: {
-        ...prev[setKey],
-        status: 'Published',
-      },
-    }));
+  const scheduleExam = (paperId, scheduledAt) => {
+    const paperSubmission = paperSubmissions.find((submission) => submission.paperId === paperId);
+    if (!paperSubmission || !Number.isFinite(Date.parse(scheduledAt)) || paperSubmission.status === 'Published') return null;
+    const existingExam = scheduledExams.find((exam) => exam.paperId === paperId);
+    const exam = {
+      id: existingExam?.id || `exam_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      paperId,
+      setId: paperSubmission.setId,
+      scheduledAt: new Date(scheduledAt).toISOString(),
+      status: 'Scheduled',
+    };
+    setScheduledExams((previous) => existingExam
+      ? previous.map((item) => item.id === existingExam.id ? exam : item)
+      : [...previous, exam]);
+    setPaperSubmissions((previous) => previous.map((item) => item.paperId === paperId ? { ...item, status: 'Scheduled' } : item));
+    addAuditEvent({ type: 'exam-scheduled', paperId, examId: exam.id, status: exam.status });
+    return exam;
+  };
+
+  const publishExam = (examId) => {
+    const exam = scheduledExams.find((item) => item.id === examId);
+    if (!exam || exam.status !== 'Scheduled') return false;
+    setScheduledExams((previous) => previous.map((item) => item.id === examId ? { ...item, status: 'Published', publishedAt: new Date().toISOString() } : item));
+    setPaperSubmissions((previous) => previous.map((item) => item.paperId === exam.paperId ? { ...item, status: 'Published' } : item));
+    addAuditEvent({ type: 'exam-published', paperId: exam.paperId, examId, status: 'Published' });
+    return true;
   };
 
   const submitStudentExam = (record) => {
-    const newSubmission = {
-      id: `sub_${Date.now()}`,
-      submittedAt: new Date().toISOString(),
-      ...record,
-    };
-    setSubmissions((prev) => [newSubmission, ...prev]);
+    if (submissions.some((submission) => submission.examId === record.examId && submission.studentUsername === record.studentUsername)) {
+      return null;
+    }
+    const newSubmission = { id: `sub_${Date.now()}`, submittedAt: new Date().toISOString(), ...record };
+    setSubmissions((previous) => [newSubmission, ...previous]);
     return newSubmission;
+  };
+
+  const recordViolation = (examId, violationCount, action, username) => {
+    addAuditEvent({ type: 'exam-violation', examId, violationCount, action, username });
   };
 
   return (
@@ -253,12 +342,17 @@ export const PaperProvider = ({ children }) => {
       value={{
         paperSets,
         submissions,
+        paperSubmissions,
+        scheduledExams,
+        auditLog,
         updatePaperSet,
         updateQuestions,
         submitPaperSet,
-        approvePaperSet,
-        publishPaperSet,
+        submitAllPaperSets,
+        scheduleExam,
+        publishExam,
         submitStudentExam,
+        recordViolation,
       }}
     >
       {children}

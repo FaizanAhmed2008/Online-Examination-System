@@ -98,12 +98,14 @@ const PaperSetManage = () => {
   };
 
   const handleSubmitToDept = () => {
-    submitPaperSet(setId);
+    const paperSubmission = submitPaperSet(setId);
     setShowConfirm(false);
     setToast({
       show: true,
-      message: `Paper Set ${paper.paperSet.replace('Set ', '')} submitted successfully to Exam Department.`,
-      type: 'success',
+      message: paperSubmission
+        ? `Paper Set ${paper.paperSet.replace('Set ', '')} submitted and locked.`
+        : 'This paper set has already been submitted or locked.',
+      type: paperSubmission ? 'success' : 'error',
     });
   };
 
@@ -148,13 +150,15 @@ const PaperSetManage = () => {
             <span>Back</span>
           </button>
 
-          <button
-            onClick={handleAddQuestion}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Add Question</span>
-          </button>
+          {!paper.locked && (
+            <button
+              onClick={handleAddQuestion}
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Add Question</span>
+            </button>
+          )}
 
           {paper.status === 'Draft' && (
             <button
@@ -172,8 +176,18 @@ const PaperSetManage = () => {
               <span>Submitted for Review</span>
             </span>
           )}
+          {paper.locked && paper.status !== 'Submitted' && (
+            <span className="px-3 py-1.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-semibold">
+              Paper Locked
+            </span>
+          )}
         </div>
       </div>
+      {paper.locked && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          This submitted paper is locked. Questions and paper settings can no longer be edited.
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -293,22 +307,27 @@ const PaperSetManage = () => {
                     {q.marks} Marks
                   </td>
                   <td className="px-5 py-4 whitespace-nowrap text-right space-x-1.5">
-                    <button
-                      onClick={() => handleEditQuestion(q, idx)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
-                      title="Edit Question"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteQuestion(idx)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
-                      title="Delete Question"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
-                    </button>
+                    {!paper.locked && (
+                      <>
+                        <button
+                          onClick={() => handleEditQuestion(q, idx)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors"
+                          title="Edit Question"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuestion(idx)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+                          title="Delete Question"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </>
+                    )}
+                    {paper.locked && <span className="text-xs text-slate-400">Locked</span>}
                   </td>
                 </tr>
               ))}
@@ -319,7 +338,7 @@ const PaperSetManage = () => {
 
       {/* Edit / Add Modal */}
       <Modal
-        isOpen={showModal}
+        isOpen={showModal && !paper.locked}
         onClose={() => setShowModal(false)}
         title={editingQuestion ? `Edit Question — ${paper.paperSet}` : `Add New Question — ${paper.paperSet}`}
       >

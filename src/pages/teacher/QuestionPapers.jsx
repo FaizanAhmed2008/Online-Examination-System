@@ -13,6 +13,7 @@ import {
   Search,
 } from 'lucide-react';
 import { usePapers } from '../../context/PaperContext';
+import Toast from '../../components/Paper/Toast';
 
 const getStatusBadge = (status) => {
   switch (status) {
@@ -29,9 +30,12 @@ const getStatusBadge = (status) => {
 };
 
 const QuestionPapers = () => {
-  const { paperSets } = usePapers();
+  const { paperSets, submitAllPaperSets } = usePapers();
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [toast, setToast] = useState({ show: false, message: '' });
+  const allSetsAreDraft = Object.keys(paperSets).length === 3 &&
+    Object.values(paperSets).every((paper) => paper.status === 'Draft' && !paper.locked);
 
   const filteredSets = Object.entries(paperSets).filter(([key, paper]) => {
     const matchesFilter = filterStatus === 'ALL' || paper.status === filterStatus;
@@ -45,6 +49,7 @@ const QuestionPapers = () => {
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
+      {toast.show && <Toast message={toast.message} onClose={() => setToast({ show: false, message: '' })} />}
       {/* Header and Filter Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -57,6 +62,20 @@ const QuestionPapers = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            disabled={!allSetsAreDraft}
+            onClick={() => {
+              const submitted = submitAllPaperSets();
+              setToast({
+                show: true,
+                message: submitted ? 'Paper Sets A, B, and C were submitted and locked.' : 'All three sets must still be editable drafts.',
+              });
+            }}
+            className="rounded-xl bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Submit All Three Sets
+          </button>
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -197,10 +216,12 @@ const QuestionPapers = () => {
 
                   <Link
                     to={`/teacher/question-papers/${key}/edit`}
+                    aria-disabled={paper.locked}
+                    onClick={(event) => paper.locked && event.preventDefault()}
                     className="inline-flex justify-center items-center gap-1.5 px-3 py-2 border border-blue-200 text-blue-700 hover:bg-blue-50 rounded-xl text-xs font-semibold transition-colors"
                   >
                     <Edit3 className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Edit Info</span>
+                    <span>{paper.locked ? 'Locked' : 'Edit Info'}</span>
                   </Link>
                 </div>
               </div>
