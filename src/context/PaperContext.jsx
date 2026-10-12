@@ -5,8 +5,8 @@ const PaperContext = createContext(null);
 
 const initialPaperSets = {
   SET_A: {
-    examName: 'Software Engineering Internal Examination',
-    subject: 'Software Engineering',
+    examName: 'Software Engineering Mid-Term Examination',
+    subject: 'Software Engineering (CS-302)',
     paperSet: 'Set A',
     duration: '30 Minutes',
     totalMarks: 20,
@@ -14,8 +14,8 @@ const initialPaperSets = {
     questions: dummyQuestions.SET_A.map((q) => ({ ...q })),
   },
   SET_B: {
-    examName: 'Software Engineering Internal Examination',
-    subject: 'Software Engineering',
+    examName: 'Software Engineering Mid-Term Examination',
+    subject: 'Software Engineering (CS-302)',
     paperSet: 'Set B',
     duration: '30 Minutes',
     totalMarks: 20,
@@ -23,8 +23,8 @@ const initialPaperSets = {
     questions: dummyQuestions.SET_B.map((q) => ({ ...q })),
   },
   SET_C: {
-    examName: 'Software Engineering Internal Examination',
-    subject: 'Software Engineering',
+    examName: 'Software Engineering Mid-Term Examination',
+    subject: 'Software Engineering (CS-302)',
     paperSet: 'Set C',
     duration: '30 Minutes',
     totalMarks: 20,
@@ -35,12 +35,32 @@ const initialPaperSets = {
 
 const initialSubmissions = [
   {
-    id: 'sub_demo_1',
+    id: 'sub_101',
     studentUsername: 'student',
-    studentName: 'Student Demo',
+    studentName: 'Aarav Sharma',
+    rollNo: '2026-CS-401',
     setId: 'SET_A',
-    examName: 'Software Engineering Internal Examination (Demo Trial)',
-    subject: 'Software Engineering',
+    examName: 'Software Engineering Mid-Term Examination',
+    subject: 'Software Engineering (CS-302)',
+    paperSet: 'Set A',
+    totalQuestions: 10,
+    answeredCount: 10,
+    correctCount: 9,
+    score: 18,
+    totalMarks: 20,
+    percentage: 90,
+    status: 'Completed',
+    submittedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    timeSpent: '18m 42s',
+  },
+  {
+    id: 'sub_102',
+    studentUsername: 'aditi.kulkarni',
+    studentName: 'Aditi Kulkarni',
+    rollNo: '2026-CS-402',
+    setId: 'SET_A',
+    examName: 'Software Engineering Mid-Term Examination',
+    subject: 'Software Engineering (CS-302)',
     paperSet: 'Set A',
     totalQuestions: 10,
     answeredCount: 10,
@@ -49,8 +69,65 @@ const initialSubmissions = [
     totalMarks: 20,
     percentage: 80,
     status: 'Completed',
-    submittedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    timeSpent: '18m 42s',
+    submittedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+    timeSpent: '21m 15s',
+  },
+  {
+    id: 'sub_103',
+    studentUsername: 'rahul.verma',
+    studentName: 'Rahul Verma',
+    rollNo: '2026-CS-403',
+    setId: 'SET_A',
+    examName: 'Software Engineering Mid-Term Examination',
+    subject: 'Software Engineering (CS-302)',
+    paperSet: 'Set A',
+    totalQuestions: 10,
+    answeredCount: 10,
+    correctCount: 7,
+    score: 14,
+    totalMarks: 20,
+    percentage: 70,
+    status: 'Completed',
+    submittedAt: new Date(Date.now() - 86400000 * 3.5).toISOString(),
+    timeSpent: '24m 10s',
+  },
+  {
+    id: 'sub_104',
+    studentUsername: 'rohan.deshmukh',
+    studentName: 'Rohan Deshmukh',
+    rollNo: '2026-CS-404',
+    setId: 'SET_A',
+    examName: 'Software Engineering Mid-Term Examination',
+    subject: 'Software Engineering (CS-302)',
+    paperSet: 'Set A',
+    totalQuestions: 10,
+    answeredCount: 10,
+    correctCount: 8,
+    score: 16,
+    totalMarks: 20,
+    percentage: 80,
+    status: 'Completed',
+    submittedAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+    timeSpent: '19m 50s',
+  },
+  {
+    id: 'sub_105',
+    studentUsername: 'ananya.iyer',
+    studentName: 'Ananya Iyer',
+    rollNo: '2026-CS-405',
+    setId: 'SET_A',
+    examName: 'Software Engineering Mid-Term Examination',
+    subject: 'Software Engineering (CS-302)',
+    paperSet: 'Set A',
+    totalQuestions: 10,
+    answeredCount: 10,
+    correctCount: 10,
+    score: 20,
+    totalMarks: 20,
+    percentage: 100,
+    status: 'Completed',
+    submittedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    timeSpent: '16m 22s',
   },
 ];
 
@@ -75,7 +152,18 @@ export const PaperProvider = ({ children }) => {
       try {
         const parsedSubs = JSON.parse(storedSubmissions);
         if (Array.isArray(parsedSubs) && parsedSubs.length > 0) {
-          setSubmissions(parsedSubs);
+          // Sanitize legacy "Student Demo" submissions
+          const sanitizedSubs = parsedSubs.map((sub) => {
+            if (sub.studentName === 'Student Demo') {
+              return {
+                ...sub,
+                studentName: 'Aarav Sharma',
+                examName: sub.examName?.replace('(Demo Trial)', '').trim() || 'Software Engineering Mid-Term Examination',
+              };
+            }
+            return sub;
+          });
+          setSubmissions(sanitizedSubs);
         }
       } catch {
         setSubmissions(initialSubmissions);

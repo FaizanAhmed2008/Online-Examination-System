@@ -179,7 +179,7 @@ const QuestionPapers = () => {
               {/* Action Buttons */}
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <Link
-                  to={`${key}/manage`}
+                  to={`/teacher/question-papers/${key}/manage`}
                   className="w-full inline-flex justify-center items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
                 >
                   <Layers className="w-3.5 h-3.5" />
@@ -188,7 +188,7 @@ const QuestionPapers = () => {
 
                 <div className="grid grid-cols-2 gap-2">
                   <Link
-                    to={`${key}/view`}
+                    to={`/teacher/question-papers/${key}/view`}
                     className="inline-flex justify-center items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-semibold transition-colors"
                   >
                     <Eye className="w-3.5 h-3.5 text-slate-500" />
@@ -196,7 +196,7 @@ const QuestionPapers = () => {
                   </Link>
 
                   <Link
-                    to={`${key}/edit`}
+                    to={`/teacher/question-papers/${key}/edit`}
                     className="inline-flex justify-center items-center gap-1.5 px-3 py-2 border border-blue-200 text-blue-700 hover:bg-blue-50 rounded-xl text-xs font-semibold transition-colors"
                   >
                     <Edit3 className="w-3.5 h-3.5 text-blue-600" />

@@ -1,23 +1,14 @@
 import { useState } from 'react';
-import { Route, Routes, Link } from 'react-router-dom';
+import { Route, Routes, Link, Navigate } from 'react-router-dom';
 import {
   FileText,
-  BookOpen,
   Calendar,
   Award,
-  Users,
   CheckCircle2,
-  Clock,
   ShieldCheck,
   Send,
-  AlertCircle,
-  Eye,
-  Filter,
   Check,
   ChevronRight,
-  TrendingUp,
-  Layers,
-  Sparkles,
 } from 'lucide-react';
 import DashboardCard from '../components/DashboardCard';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -26,12 +17,12 @@ import { useAuth } from '../context/AuthContext';
 import Toast from '../components/Paper/Toast';
 
 const navItems = [
-  { name: 'Dashboard', path: '' },
-  { name: 'Paper Sets', path: 'paper-sets' },
-  { name: 'Examinations', path: 'examinations' },
-  { name: 'Exam Schedule', path: 'schedule' },
-  { name: 'Results & Moderation', path: 'results' },
-  { name: 'Officer Profile', path: 'profile' },
+  { name: 'Dashboard', path: '/examdept' },
+  { name: 'Paper Sets', path: '/examdept/paper-sets' },
+  { name: 'Examinations', path: '/examdept/examinations' },
+  { name: 'Exam Schedule', path: '/examdept/schedule' },
+  { name: 'Results & Moderation', path: '/examdept/results' },
+  { name: 'Officer Profile', path: '/examdept/profile' },
 ];
 
 const getStatusBadge = (status) => {
@@ -49,13 +40,12 @@ const getStatusBadge = (status) => {
 };
 
 const ExamDeptHome = () => {
-  const { paperSets, submissions, publishPaperSet, approvePaperSet } = usePapers();
-  const { user } = useAuth();
+  const { paperSets, submissions, publishPaperSet } = usePapers();
   const [toast, setToast] = useState({ show: false, message: '' });
 
   const totalSets = Object.keys(paperSets).length;
   const publishedCount = Object.values(paperSets).filter((p) => p.status === 'Published').length;
-  const pendingReview = Object.entries(paperSets).filter(([_, p]) => p.status === 'Submitted');
+  const pendingReview = Object.entries(paperSets).filter(([, p]) => p.status === 'Submitted');
 
   const handleQuickPublish = (key, name) => {
     publishPaperSet(key);
@@ -89,14 +79,14 @@ const ExamDeptHome = () => {
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              to="paper-sets"
+              to="/examdept/paper-sets"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-all shadow-md shadow-blue-600/25"
             >
               <FileText className="w-4 h-4" />
               <span>Review Paper Sets</span>
             </Link>
             <Link
-              to="results"
+              to="/examdept/results"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-sm transition-all border border-white/20"
             >
               <Award className="w-4 h-4" />
@@ -153,7 +143,7 @@ const ExamDeptHome = () => {
             </p>
           </div>
           <Link
-            to="paper-sets"
+            to="/examdept/paper-sets"
             className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
           >
             <span>All Sets</span>
@@ -222,7 +212,7 @@ const ExamDeptHome = () => {
             Software Engineering examination active for all 3rd Year CSE student cohorts.
           </p>
           <Link
-            to="schedule"
+            to="/examdept/schedule"
             className="mt-3 inline-flex items-center text-xs font-semibold text-blue-600 hover:underline gap-1"
           >
             <span>View Timetable</span>
@@ -244,7 +234,7 @@ const ExamDeptHome = () => {
             Automated grading pipeline calculated real-time passing rate at 94.2%.
           </p>
           <Link
-            to="results"
+            to="/examdept/results"
             className="mt-3 inline-flex items-center text-xs font-semibold text-emerald-600 hover:underline gap-1"
           >
             <span>Moderate Results</span>
@@ -351,13 +341,22 @@ const ExamDeptPaperSets = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
                     {paper.status === 'Submitted' && (
-                      <button
-                        onClick={() => handlePublish(key, paper.paperSet)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>Approve & Publish</span>
-                      </button>
+                      <div className="inline-flex gap-1.5">
+                        <button
+                          onClick={() => handleApprove(key, paper.paperSet)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>Approve Set</span>
+                        </button>
+                        <button
+                          onClick={() => handlePublish(key, paper.paperSet)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                        >
+                          <Send className="w-3 h-3" />
+                          <span>Publish Live</span>
+                        </button>
+                      </div>
                     )}
                     {paper.status === 'Approved' && (
                       <button
@@ -392,6 +391,8 @@ const ExamDeptPaperSets = () => {
 // Examinations List
 const ExamDeptExaminations = () => {
   const { paperSets } = usePapers();
+  const publishedSets = Object.entries(paperSets).filter(([, p]) => p.status === 'Published');
+  const otherSets = Object.entries(paperSets).filter(([, p]) => p.status !== 'Published');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -405,80 +406,84 @@ const ExamDeptExaminations = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs relative overflow-hidden">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div>
-              <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                EXAM-SE-2026
+        {publishedSets.map(([key, paper]) => (
+          <div key={key} className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs relative overflow-hidden">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                  {key}
+                </span>
+                <h4 className="text-base font-bold text-slate-900 mt-2">
+                  {paper.examName} ({paper.paperSet})
+                </h4>
+                <p className="text-xs text-slate-500">Department of Computer Engineering & IT</p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Active Session
               </span>
-              <h4 className="text-base font-bold text-slate-900 mt-2">
-                Software Engineering Internal Examination
-              </h4>
-              <p className="text-xs text-slate-500">Department of Computer Science & Engineering</p>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Active Session
-            </span>
-          </div>
 
-          <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs mb-4">
-            <div>
-              <span className="text-slate-400 block text-[10px] uppercase">Paper Set</span>
-              <span className="font-bold text-slate-800">Set A / B</span>
+            <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs mb-4">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase">Subject</span>
+                <span className="font-bold text-slate-800 truncate block">{paper.subject}</span>
+              </div>
+              <div className="border-x border-slate-200">
+                <span className="text-slate-400 block text-[10px] uppercase">Registered</span>
+                <span className="font-bold text-slate-800">120 Students</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase">Duration</span>
+                <span className="font-bold text-slate-800">{paper.duration}</span>
+              </div>
             </div>
-            <div className="border-x border-slate-200">
-              <span className="text-slate-400 block text-[10px] uppercase">Registered</span>
-              <span className="font-bold text-slate-800">120 Students</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px] uppercase">Duration</span>
-              <span className="font-bold text-slate-800">30 Mins</span>
+
+            <div className="text-xs text-slate-600 flex items-center justify-between border-t border-slate-100 pt-3">
+              <span>Proctoring: <strong>AI Auto-Invigilation</strong></span>
+              <span className="text-emerald-700 font-semibold">Live on Portals</span>
             </div>
           </div>
+        ))}
 
-          <div className="text-xs text-slate-600 flex items-center justify-between border-t border-slate-100 pt-3">
-            <span>Proctoring: <strong>AI Auto-Invigilation</strong></span>
-            <span className="text-emerald-700 font-semibold">Ready for Taking</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs opacity-85">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div>
-              <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                EXAM-DS-2026
+        {otherSets.map(([key, paper]) => (
+          <div key={key} className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs opacity-90">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                  {key}
+                </span>
+                <h4 className="text-base font-bold text-slate-900 mt-2">
+                  {paper.examName} ({paper.paperSet})
+                </h4>
+                <p className="text-xs text-slate-500">Department of Computer Engineering & IT</p>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                {paper.status === 'Submitted' ? 'Awaiting Approval' : 'Draft / Preparing'}
               </span>
-              <h4 className="text-base font-bold text-slate-900 mt-2">
-                Data Structures & Algorithms Final
-              </h4>
-              <p className="text-xs text-slate-500">Department of Computer Science & Engineering</p>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-              Upcoming
-            </span>
-          </div>
 
-          <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs mb-4">
-            <div>
-              <span className="text-slate-400 block text-[10px] uppercase">Paper Set</span>
-              <span className="font-bold text-slate-800">TBD</span>
+            <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs mb-4">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase">Paper Set</span>
+                <span className="font-bold text-slate-800">{paper.paperSet}</span>
+              </div>
+              <div className="border-x border-slate-200">
+                <span className="text-slate-400 block text-[10px] uppercase">Questions</span>
+                <span className="font-bold text-slate-800">{paper.questions?.length || 0}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase">Duration</span>
+                <span className="font-bold text-slate-800">{paper.duration}</span>
+              </div>
             </div>
-            <div className="border-x border-slate-200">
-              <span className="text-slate-400 block text-[10px] uppercase">Registered</span>
-              <span className="font-bold text-slate-800">145 Students</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px] uppercase">Duration</span>
-              <span className="font-bold text-slate-800">45 Mins</span>
-            </div>
-          </div>
 
-          <div className="text-xs text-slate-500 flex items-center justify-between border-t border-slate-100 pt-3">
-            <span>Scheduled: <strong>Next Week</strong></span>
-            <span>Registration Open</span>
+            <div className="text-xs text-slate-500 flex items-center justify-between border-t border-slate-100 pt-3">
+              <span>Status: <strong>{paper.status}</strong></span>
+              <span>Subject: {paper.subject}</span>
+            </div>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -488,11 +493,11 @@ const ExamDeptExaminations = () => {
 const ExamDeptSchedule = () => {
   const scheduleData = [
     {
-      course: 'Software Engineering (SE-302)',
+      course: 'Software Engineering (CS-302)',
       date: 'Today / Ongoing',
       timeSlot: '10:00 AM - 12:00 PM',
       mode: 'Online CBT Portal',
-      invigilator: 'Dr. A. Sharma / Automated AI',
+      invigilator: 'Dr. Priya Patil / AI Auto-Proctor',
       status: 'Live',
     },
     {
@@ -500,7 +505,7 @@ const ExamDeptSchedule = () => {
       date: 'Tomorrow',
       timeSlot: '02:00 PM - 03:30 PM',
       mode: 'Exam Lab Block 3',
-      invigilator: 'Prof. R. Mehta',
+      invigilator: 'Prof. Rahul Verma',
       status: 'Scheduled',
     },
     {
@@ -508,7 +513,15 @@ const ExamDeptSchedule = () => {
       date: 'In 3 Days',
       timeSlot: '10:00 AM - 11:30 AM',
       mode: 'Online CBT Portal',
-      invigilator: 'Dr. S. Nair',
+      invigilator: 'Prof. Rohan Deshmukh',
+      status: 'Scheduled',
+    },
+    {
+      course: 'Design & Analysis of Algorithms (CS-301)',
+      date: 'In 5 Days',
+      timeSlot: '02:00 PM - 03:30 PM',
+      mode: 'Online CBT Portal',
+      invigilator: 'Dr. Aditi Kulkarni',
       status: 'Scheduled',
     },
   ];
@@ -663,31 +676,31 @@ const ExamDeptProfile = () => {
       <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs">
         <div className="flex items-center gap-4 border-b border-slate-100 pb-6 mb-6">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center text-2xl font-bold shadow-md">
-            {user?.name?.charAt(0) || 'E'}
+            {user?.name?.charAt(0) || 'S'}
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-900">{user?.name}</h3>
+            <h3 className="text-xl font-bold text-slate-900">{user?.name || 'Dr. Sneha Joshi'}</h3>
             <p className="text-xs text-indigo-600 font-semibold">Controller of Examinations (COE) Officer</p>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">Cell ID: EXAM-DEPT-OFFICE-01</p>
+            <p className="text-xs text-slate-500 font-mono mt-0.5">Officer ID: COE-MH-2024-01</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Administrative Office</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Central Examination Cell, Administrative Block</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Central Examination Cell, Administrative Block, MGM University</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Jurisdiction</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">All University Academic Faculties & Centers</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">All University Academic Faculties & Examination Centers</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Authorization Level</span>
-            <p className="text-sm font-semibold text-emerald-700 mt-1">Root Clearance: Paper Approval & Results Publication</p>
+            <p className="text-sm font-semibold text-emerald-700 mt-1">Root Authority: Paper Approval & Official Result Publication</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Current Term</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Academic Session 2026-27</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Academic Session 2025-26</p>
           </div>
         </div>
       </div>
@@ -705,6 +718,7 @@ const ExamDeptDashboard = () => {
         <Route path="schedule" element={<ExamDeptSchedule />} />
         <Route path="results" element={<ExamDeptResults />} />
         <Route path="profile" element={<ExamDeptProfile />} />
+        <Route path="*" element={<Navigate to="/examdept" replace />} />
       </Routes>
     </DashboardLayout>
   );

@@ -6,16 +6,12 @@ import {
   FileText,
   HelpCircle,
   User,
-  CheckCircle2,
   Calendar,
   Award,
   BookOpen,
   LogOut,
   Menu,
   X,
-  Bell,
-  Clock,
-  ShieldCheck,
   ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -46,11 +42,19 @@ const DashboardLayout = ({ title, navItems, children }) => {
 
   const basePath = location.pathname.split('/').slice(0, 2).join('/');
 
+  const getFullPath = (path) => {
+    if (!path) return basePath;
+    if (path.startsWith('/')) return path;
+    return `${basePath}/${path}`;
+  };
+
   const isActive = (path) => {
-    if (path === '.' || path === '') {
-      return location.pathname === basePath || location.pathname === `${basePath}/`;
+    const target = getFullPath(path).replace(/\/+$/, '');
+    const current = location.pathname.replace(/\/+$/, '');
+    if (target === basePath) {
+      return current === basePath;
     }
-    return location.pathname.startsWith(`${basePath}/${path}`);
+    return current === target || current.startsWith(`${target}/`);
   };
 
   const getRoleBadge = (role) => {
@@ -87,19 +91,19 @@ const DashboardLayout = ({ title, navItems, children }) => {
       >
         {/* Brand header */}
         <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-900/40">
+          <Link to="/" className="flex items-center space-x-3 group" title="Return to Public Homepage">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-900/40 group-hover:scale-105 transition-transform">
               <GraduationCap className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white tracking-tight leading-snug">
-                Apex University
+              <h1 className="text-base font-bold text-white tracking-tight leading-snug group-hover:text-blue-300 transition-colors">
+                MGM University
               </h1>
               <p className="text-xs text-blue-300 font-medium">
                 Examination Portal
               </p>
             </div>
-          </div>
+          </Link>
           <button
             onClick={() => setMobileMenuOpen(false)}
             className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
@@ -136,10 +140,11 @@ const DashboardLayout = ({ title, navItems, children }) => {
           {navItems.map((item) => {
             const Icon = getNavIcon(item.name);
             const active = isActive(item.path);
+            const fullPath = getFullPath(item.path);
             return (
               <Link
                 key={item.name}
-                to={item.path}
+                to={fullPath}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                   active
@@ -212,13 +217,16 @@ const DashboardLayout = ({ title, navItems, children }) => {
             </div>
 
             <div className="flex items-center space-x-2.5 sm:space-x-3 shrink-0">
-              <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span>
-                DEMO MODE
-              </span>
+              <Link
+                to="/"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors border border-slate-200"
+                title="View Public Homepage"
+              >
+                <span>Public Home</span>
+              </Link>
 
               <span
-                className={`hidden md:inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${roleInfo.color}`}
+                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${roleInfo.color}`}
               >
                 {roleInfo.label}
               </span>

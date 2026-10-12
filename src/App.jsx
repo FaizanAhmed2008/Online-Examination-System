@@ -5,6 +5,8 @@ import ExamDeptDashboard from './pages/ExamDeptDashboard';
 import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
+import LandingPage from './pages/LandingPage';
+import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated } = useAuth();
@@ -21,20 +23,15 @@ function ProtectedRoute({ children, allowedRoles }) {
 }
 
 function AppRoutes() {
-  const { isAuthenticated, user } = useAuth();
-
-  const getDefaultRoute = () => {
-    if (!isAuthenticated) return '/login';
-    if (user.role === 'teacher') return '/teacher';
-    if (user.role === 'examdept') return '/examdept';
-    if (user.role === 'student') return '/student';
-    return '/login';
-  };
-
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+      {/* Public Landing Page */}
+      <Route path="/" element={<LandingPage />} />
+
+      {/* Authentication */}
       <Route path="/login" element={<Login />} />
+
+      {/* Role-Specific Protected Dashboards */}
       <Route
         path="/teacher/*"
         element={
@@ -59,7 +56,9 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to={getDefaultRoute()} replace />} />
+
+      {/* 404 Fallback */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

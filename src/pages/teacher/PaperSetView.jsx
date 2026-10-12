@@ -125,7 +125,7 @@ const PaperSetView = () => {
           <div className="inline-flex items-center justify-center gap-2 mb-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
             <span className="text-xs font-bold uppercase tracking-widest text-slate-600">
-              Apex University Examination Division
+              MGM University Examination Division
             </span>
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
           </div>

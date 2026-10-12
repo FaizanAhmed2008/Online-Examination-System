@@ -7,19 +7,19 @@ const DEMO_USERS = {
     username: 'teacher',
     password: 'teacher123',
     role: 'teacher',
-    name: 'Teacher Demo',
+    name: 'Dr. Priya Patil',
   },
   examdept: {
     username: 'examdept',
     password: 'exam123',
     role: 'examdept',
-    name: 'Exam Department Demo',
+    name: 'Dr. Sneha Joshi',
   },
   student: {
     username: 'student',
     password: 'student123',
     role: 'student',
-    name: 'Student Demo',
+    name: 'Aarav Sharma',
   },
 };
 
@@ -33,6 +33,11 @@ export const AuthProvider = ({ children }) => {
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
+        // Automatically migrate legacy demo names to authentic Indian names
+        if (parsed.username && DEMO_USERS[parsed.username]) {
+          parsed.name = DEMO_USERS[parsed.username].name;
+          localStorage.setItem('oes_user', JSON.stringify(parsed));
+        }
         setUser(parsed);
         setIsAuthenticated(true);
       } catch (error) {

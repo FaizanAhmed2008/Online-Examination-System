@@ -1,21 +1,14 @@
 import { useState } from 'react';
-import { Route, Routes, Link, useNavigate } from 'react-router-dom';
+import { Route, Routes, Link, Navigate } from 'react-router-dom';
 import {
   FileText,
   HelpCircle,
-  CheckCircle2,
-  Clock,
   Layers,
   ArrowRight,
-  PlusCircle,
-  Eye,
-  Edit3,
-  BookOpen,
-  User,
   ShieldCheck,
   Search,
-  Filter,
   Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import DashboardCard from '../components/DashboardCard';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -27,10 +20,10 @@ import PaperSetView from './teacher/PaperSetView';
 import PaperSetManage from './teacher/PaperSetManage';
 
 const navItems = [
-  { name: 'Dashboard', path: '' },
-  { name: 'Question Papers', path: 'question-papers' },
-  { name: 'Questions Bank', path: 'questions' },
-  { name: 'Faculty Profile', path: 'profile' },
+  { name: 'Dashboard', path: '/teacher' },
+  { name: 'Question Papers', path: '/teacher/question-papers' },
+  { name: 'Questions Bank', path: '/teacher/questions' },
+  { name: 'Faculty Profile', path: '/teacher/profile' },
 ];
 
 const getStatusBadge = (status) => {
@@ -49,7 +42,6 @@ const getStatusBadge = (status) => {
 
 const TeacherHome = () => {
   const { paperSets } = usePapers();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const totalQuestions = Object.values(paperSets).reduce(
@@ -74,18 +66,18 @@ const TeacherHome = () => {
             Welcome back, {user?.name || 'Professor'}
           </h2>
           <p className="text-sm text-blue-100/90 leading-relaxed mb-6">
-            Manage your question papers for Software Engineering (SE-302). Create questions, review sets, and submit finalized assessments to the Exam Department.
+            Manage your question papers for Software Engineering (CS-302). Create questions, review sets, and submit finalized assessments to the Examination Department.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              to="question-papers"
+              to="/teacher/question-papers"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-all shadow-md shadow-blue-500/25"
             >
               <FileText className="w-4 h-4" />
               <span>Manage Paper Sets</span>
             </Link>
             <Link
-              to="questions"
+              to="/teacher/questions"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-sm transition-all border border-white/20"
             >
               <HelpCircle className="w-4 h-4" />
@@ -135,7 +127,7 @@ const TeacherHome = () => {
             </p>
           </div>
           <Link
-            to="question-papers"
+            to="/teacher/question-papers"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
           >
             <span>View All Papers</span>
@@ -196,7 +188,7 @@ const TeacherHome = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">
                     <Link
-                      to={`question-papers/${key}/manage`}
+                      to={`/teacher/question-papers/${key}/manage`}
                       className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
                     >
                       <Layers className="w-3.5 h-3.5" />
@@ -414,23 +406,23 @@ const FacultyProfile = () => {
       <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs">
         <div className="flex items-center gap-4 border-b border-slate-100 pb-6 mb-6">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-2xl font-bold shadow-md">
-            {user?.name?.charAt(0) || 'F'}
+            {user?.name?.charAt(0) || 'P'}
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-900">{user?.name}</h3>
+            <h3 className="text-xl font-bold text-slate-900">{user?.name || 'Dr. Priya Patil'}</h3>
             <p className="text-xs text-blue-600 font-semibold">Associate Professor & Paper Setter</p>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">Faculty ID: EMP-2024-884</p>
+            <p className="text-xs text-slate-500 font-mono mt-0.5">Faculty ID: FAC-MH-2024-884</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Department</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Computer Science & Engineering</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Department of Computer Engineering</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Assigned Subject</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Software Engineering (SE-302)</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Software Engineering (CS-302)</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Clearance Level</span>
@@ -438,7 +430,7 @@ const FacultyProfile = () => {
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Term</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Academic Session 2026-27</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Academic Session 2025-26</p>
           </div>
         </div>
       </div>
@@ -457,6 +449,7 @@ const TeacherDashboard = () => {
         <Route path="question-papers/:setId/manage" element={<PaperSetManage />} />
         <Route path="questions" element={<QuestionBankView />} />
         <Route path="profile" element={<FacultyProfile />} />
+        <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
     </DashboardLayout>
   );

@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   GraduationCap,
   ShieldCheck,
   User,
   Lock,
   ArrowRight,
-  Sparkles,
-  BookOpen,
-  Award,
-  CheckCircle2,
+  ArrowLeft,
   Clock,
+  Award,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -85,7 +83,7 @@ const Login = () => {
               </div>
               <div>
                 <span className="text-xs font-bold uppercase tracking-widest text-blue-300">
-                  Apex University
+                  MGM University
                 </span>
                 <p className="text-sm text-slate-300 font-medium">
                   Examination Cell
@@ -128,6 +126,16 @@ const Login = () => {
         {/* Right Form Column */}
         <div className="lg:col-span-7 p-8 sm:p-10 flex flex-col justify-between bg-white">
           <div>
+            <div className="mb-4">
+              <Link
+                to="/"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors group"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+                <span>Back to Homepage</span>
+              </Link>
+            </div>
+
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -137,8 +145,8 @@ const Login = () => {
                   Access your institutional examination account
                 </p>
               </div>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                DEMO MODE
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                Session 2025-26
               </span>
             </div>
 
@@ -232,11 +240,12 @@ const Login = () => {
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                    Faculty
+                    Faculty Member
                   </span>
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                 </div>
-                <p className="text-[11px] font-mono text-slate-500">teacher</p>
+                <p className="text-xs font-medium text-slate-700">Dr. Priya Patil</p>
+                <p className="text-[10px] font-mono text-slate-400 mt-0.5">user: teacher</p>
               </button>
 
               <button
@@ -246,11 +255,12 @@ const Login = () => {
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                    Exam Dept
+                    Exam Dept (CoE)
                   </span>
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                 </div>
-                <p className="text-[11px] font-mono text-slate-500">examdept</p>
+                <p className="text-xs font-medium text-slate-700">Dr. Sneha Joshi</p>
+                <p className="text-[10px] font-mono text-slate-400 mt-0.5">user: examdept</p>
               </button>
 
               <button
@@ -260,11 +270,12 @@ const Login = () => {
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                    Student
+                    Student Candidate
                   </span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 </div>
-                <p className="text-[11px] font-mono text-slate-500">student</p>
+                <p className="text-xs font-medium text-slate-700">Aarav Sharma</p>
+                <p className="text-[10px] font-mono text-slate-400 mt-0.5">user: student</p>
               </button>
             </div>
           </div>

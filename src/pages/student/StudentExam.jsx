@@ -69,7 +69,7 @@ const StudentExam = () => {
 
     return {
       studentUsername: user?.username || 'student',
-      studentName: user?.name || 'Student Demo',
+      studentName: user?.name || 'Aarav Sharma',
       setId: setId || 'SET_A',
       examName: paper.examName,
       subject: paper.subject,

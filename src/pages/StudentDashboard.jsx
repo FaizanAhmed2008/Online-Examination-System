@@ -1,19 +1,10 @@
-import { Route, Routes, Link, useNavigate } from 'react-router-dom';
+import { Route, Routes, Link, useNavigate, Navigate } from 'react-router-dom';
 import {
   BookOpen,
-  CheckCircle2,
   Award,
-  Activity,
   ArrowRight,
-  Clock,
-  HelpCircle,
   ShieldCheck,
-  Calendar,
-  AlertCircle,
   Sparkles,
-  FileText,
-  User,
-  ExternalLink,
 } from 'lucide-react';
 import DashboardCard from '../components/DashboardCard';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -22,11 +13,11 @@ import { useAuth } from '../context/AuthContext';
 import StudentExam from './student/StudentExam';
 
 const navItems = [
-  { name: 'Dashboard', path: '' },
-  { name: 'Available Exams', path: 'available-exams' },
-  { name: 'My Exams', path: 'my-exams' },
-  { name: 'Results & Grades', path: 'results' },
-  { name: 'Student Profile', path: 'profile' },
+  { name: 'Dashboard', path: '/student' },
+  { name: 'Available Exams', path: '/student/available-exams' },
+  { name: 'My Exams', path: '/student/my-exams' },
+  { name: 'Results & Grades', path: '/student/results' },
+  { name: 'Student Profile', path: '/student/profile' },
 ];
 
 const StudentHome = () => {
@@ -67,14 +58,14 @@ const StudentHome = () => {
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              to="available-exams"
+              to="/student/available-exams"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-all shadow-md shadow-blue-500/25"
             >
               <BookOpen className="w-4 h-4" />
               <span>Browse Available Exams ({publishedExams.length})</span>
             </Link>
             <Link
-              to="results"
+              to="/student/results"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-sm transition-all border border-white/20"
             >
               <Award className="w-4 h-4" />
@@ -135,7 +126,7 @@ const StudentHome = () => {
             </div>
 
             <button
-              onClick={() => navigate(`exam/${publishedExams[0][0]}`)}
+              onClick={() => navigate(`/student/exam/${publishedExams[0][0]}`)}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-600/25 transition-all self-start md:self-center"
             >
               <span>Launch Examination</span>
@@ -467,31 +458,31 @@ const StudentProfile = () => {
       <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs">
         <div className="flex items-center gap-4 border-b border-slate-100 pb-6 mb-6">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center text-2xl font-bold shadow-md">
-            {user?.name?.charAt(0) || 'S'}
+            {user?.name?.charAt(0) || 'A'}
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-900">{user?.name}</h3>
+            <h3 className="text-xl font-bold text-slate-900">{user?.name || 'Aarav Sharma'}</h3>
             <p className="text-xs text-emerald-600 font-semibold">Undergraduate Engineering Candidate</p>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">Roll No: 2026-CS-401 &middot; Enrollment: EN-992014</p>
+            <p className="text-xs text-slate-500 font-mono mt-0.5">Roll No: 2026-CS-401 &middot; Enrollment: EN-2023-88214</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Program of Study</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Bachelor of Technology (B.Tech - CSE)</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Bachelor of Technology (B.Tech - Computer Science)</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Current Semester</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Semester VI (Academic Session 2026-27)</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">Semester VI (Academic Session 2025-26)</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Exam Clearance</span>
-            <p className="text-sm font-semibold text-emerald-700 mt-1">Admit Card Active & Verified</p>
+            <p className="text-sm font-semibold text-emerald-700 mt-1">Admit Card Active & Biometric Verified</p>
           </div>
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
             <span className="text-slate-400 font-medium">Institution</span>
-            <p className="text-sm font-semibold text-slate-800 mt-1">Apex University School of Engineering</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">JNEC, MGM University</p>
           </div>
         </div>
       </div>
@@ -516,6 +507,7 @@ const StudentDashboard = () => {
               <Route path="my-exams" element={<MyExams />} />
               <Route path="results" element={<StudentResults />} />
               <Route path="profile" element={<StudentProfile />} />
+              <Route path="*" element={<Navigate to="/student" replace />} />
             </Routes>
           </DashboardLayout>
         }
