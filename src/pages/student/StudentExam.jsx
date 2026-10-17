@@ -38,6 +38,8 @@ const createShuffledQuestions = (questions) => shuffleItems(questions).map((ques
   return shuffledQuestion;
 });
 
+const MAX_VIOLATIONS = 2;
+
 const StudentExam = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
@@ -148,21 +150,57 @@ const StudentExam = () => {
     setShowTimeUpModal(false);
   }, [calculateResults, exam?.setId, examId, submissions, submitStudentExam, user?.username]);
 
+  const executeDisqualification = useCallback(() => {
+    if (submitStarted.current) return;
+    submitStarted.current = true;
+    clearInterval(timerRef.current);
+    const timeSpentSeconds = Math.max(0, Math.floor((Date.now() - examStartTime.current) / 1000));
+    const disqualifiedRecord = {
+      ...calculateResults(),
+      status: 'Disqualified',
+      disqualified: true,
+      violationCount: violationCountRef.current,
+      score: 0,
+      correctCount: 0,
+      percentage: 0,
+      answers: {},
+      timeSpent: `${Math.floor(timeSpentSeconds / 60)}m ${timeSpentSeconds % 60}s`,
+    };
+    const savedResult = submitStudentExam(disqualifiedRecord);
+    if (!savedResult) {
+      const completedResult = submissions.find((submission) => submission.studentUsername === user?.username &&
+        (submission.examId === examId || (!submission.examId && exam && submission.setId === exam.setId)));
+      if (completedResult) {
+        setExamResult(completedResult);
+        setIsSubmitted(true);
+        return;
+      }
+      submitStarted.current = false;
+      return;
+    }
+    setExamResult(disqualifiedRecord);
+    setIsSubmitted(true);
+    setShowViolationWarning(false);
+    setShowSubmitModal(false);
+    setShowTimeUpModal(false);
+  }, [calculateResults, exam?.setId, examId, submissions, submitStudentExam, user?.username]);
+
   const handleConfirmedViolation = useCallback(() => {
     const now = Date.now();
-    if (now - lastViolationAt.current < 500 || isSubmitted || submitStarted.current) return;
+    if (now - lastViolationAt.current < 1500 || isSubmitted || submitStarted.current) return;
     lastViolationAt.current = now;
     violationCountRef.current += 1;
     const nextCount = violationCountRef.current;
     setViolationCount(nextCount);
-    const action = nextCount >= 2 ? 'auto-submitted' : 'warning';
-    recordViolation(examId, nextCount, action, user?.username);
-    if (nextCount === 1) {
-      setShowViolationWarning(true);
-    } else {
-      executeSubmission();
+
+    if (nextCount >= MAX_VIOLATIONS) {
+      recordViolation(examId, nextCount, 'disqualified', user?.username);
+      executeDisqualification();
+      return;
     }
-  }, [examId, executeSubmission, isSubmitted, recordViolation, user?.username]);
+    recordViolation(examId, nextCount, 'warning', user?.username);
+    setShowViolationWarning(true);
+  }, [examId, executeDisqualification, isSubmitted, recordViolation, user?.username]);
 
   const handleTimeExpired = useCallback(() => {
     setShowTimeUpModal(true);
@@ -194,6 +232,11 @@ const StudentExam = () => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') handleConfirmedViolation();
     };
+    const handleWindowBlur = () => {
+      // Switching to another application keeps the tab "visible", so the window
+      // focus loss is tracked as well.
+      if (document.visibilityState === 'visible') handleConfirmedViolation();
+    };
     const handleFullscreenChange = () => {
       if (document.fullscreenElement) {
         fullscreenEntered.current = true;
@@ -203,9 +246,11 @@ const StudentExam = () => {
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, [existingSubmission, handleConfirmedViolation, isSubmitted, isWithinExamWindow]);
@@ -248,13 +293,28 @@ const StudentExam = () => {
   }
 
   if (existingSubmission && !isSubmitted) {
+    const wasDisqualified = Boolean(existingSubmission.disqualified) || existingSubmission.status === 'Disqualified';
     return (
       <div className="min-h-screen bg-slate-50 grid place-items-center p-6 text-center">
         <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8">
-          <Check className="mx-auto h-10 w-10 text-emerald-600" />
-          <h2 className="mt-3 text-xl font-bold text-slate-900">Exam already completed</h2>
-          <p className="mt-2 text-sm text-slate-600">This completed examination cannot be restarted.</p>
-          <button onClick={() => navigate('/student/results')} className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">View result</button>
+          {wasDisqualified ? (
+            <>
+              <ShieldCheck className="mx-auto h-10 w-10 text-rose-600" />
+              <h2 className="mt-3 text-xl font-bold text-slate-900">Candidate disqualified</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                This attempt was terminated after {existingSubmission.violationCount || MAX_VIOLATIONS} proctoring
+                violations (tab switch, window blur, or fullscreen exit). The result is recorded as disqualification.
+              </p>
+              <button onClick={() => navigate('/student/results')} className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">View result</button>
+            </>
+          ) : (
+            <>
+              <Check className="mx-auto h-10 w-10 text-emerald-600" />
+              <h2 className="mt-3 text-xl font-bold text-slate-900">Exam already completed</h2>
+              <p className="mt-2 text-sm text-slate-600">This completed examination cannot be restarted.</p>
+              <button onClick={() => navigate('/student/results')} className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">View result</button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -336,6 +396,63 @@ const StudentExam = () => {
 
   // --- RESULT SCORECARD VIEW ---
   if (isSubmitted && examResult) {
+    const isDisqualified = Boolean(examResult.disqualified) || examResult.status === 'Disqualified';
+
+    if (isDisqualified) {
+      return (
+        <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 animate-fade-in text-slate-800">
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-3xl border border-rose-200 shadow-md p-8 text-center relative overflow-hidden">
+              <div className="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center mb-4 bg-rose-50 text-rose-600 border border-rose-200">
+                <AlertTriangle className="w-10 h-10" />
+              </div>
+
+              <span className="text-xs font-bold uppercase tracking-wider text-rose-500">
+                Proctoring Terminated Attempt
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-rose-700 mt-1 mb-2">
+                DISQUALIFIED
+              </h2>
+              <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                Your examination for <span className="font-semibold text-slate-800">{examResult.examName}</span> was
+                automatically terminated after{' '}
+                <span className="font-semibold text-rose-700">{examResult.violationCount || MAX_VIOLATIONS} confirmed
+                proctoring violations</span>{' '}
+                (switching tabs, leaving the window, or exiting fullscreen). The attempt is scored zero and recorded
+                against your candidature.
+              </p>
+
+              <div className="max-w-sm mx-auto grid grid-cols-2 gap-3 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-center mb-6">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-rose-400 block">Awarded Score</span>
+                  <span className="text-2xl font-black text-rose-700">0</span>
+                </div>
+                <div className="border-l border-rose-200">
+                  <span className="text-[10px] uppercase font-bold text-rose-400 block">Paper Set</span>
+                  <span className="text-base font-extrabold text-slate-800 block mt-1">{examResult.paperSet}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  onClick={() => navigate('/student/results')}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
+                >
+                  View in Academic Results
+                </button>
+                <button
+                  onClick={() => navigate('/student')}
+                  className="px-5 py-2.5 border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-xl text-xs font-semibold transition-colors"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     const isPass = examResult.percentage >= 40;
 
     return (
@@ -835,7 +952,7 @@ const StudentExam = () => {
               <AlertTriangle className="h-8 w-8 text-amber-600" />
               <h3 className="text-lg font-bold text-slate-900">Exam integrity warning</h3>
             </div>
-            <p className="mt-3 text-sm text-slate-600">A tab switch or fullscreen exit was detected ({violationCount} of 2). A second confirmed violation will automatically submit your exam.</p>
+            <p className="mt-3 text-sm text-slate-600">A proctoring violation was detected — a tab switch, leaving the exam window, or a fullscreen exit ({violationCount} of {MAX_VIOLATIONS}). One more confirmed violation will instantly disqualify this attempt (score 0).</p>
             <button onClick={() => setShowViolationWarning(false)} className="mt-5 w-full rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white">Return to examination</button>
           </div>
         </div>

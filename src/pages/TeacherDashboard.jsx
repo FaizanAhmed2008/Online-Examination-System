@@ -49,7 +49,7 @@ const TeacherHome = () => {
     0
   );
   const submittedCount = Object.values(paperSets).filter(
-    (p) => p.status === 'Submitted' || p.status === 'Published'
+    (p) => p.status === 'Submitted' || p.status === 'Approved' || p.status === 'Published'
   ).length;
 
   return (

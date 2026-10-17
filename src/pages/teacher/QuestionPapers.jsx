@@ -88,7 +88,7 @@ const QuestionPapers = () => {
           </div>
 
           <div className="flex gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-            {['ALL', 'Draft', 'Submitted', 'Published'].map((status) => (
+            {['ALL', 'Draft', 'Submitted', 'Approved', 'Published'].map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
@@ -122,6 +122,8 @@ const QuestionPapers = () => {
                 className={`absolute top-0 left-0 right-0 h-1.5 ${
                   paper.status === 'Published'
                     ? 'bg-blue-600'
+                    : paper.status === 'Approved'
+                    ? 'bg-emerald-500'
                     : paper.status === 'Submitted'
                     ? 'bg-amber-500'
                     : 'bg-slate-400'

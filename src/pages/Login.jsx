@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   GraduationCap,
   ShieldCheck,
@@ -19,14 +19,16 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const destination = location.state?.from;
+
+  const homeFor = (role, fallback) => (role ? `/${role}` : fallback);
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === 'teacher') navigate('/teacher');
-      else if (user.role === 'examdept') navigate('/examdept');
-      else if (user.role === 'student') navigate('/student');
+      navigate(destination || homeFor(user.role, '/'), { replace: true });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [destination, isAuthenticated, navigate, user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,7 +40,9 @@ const Login = () => {
       const result = login(username, password);
 
       if (result.success) {
-        if (result.role === 'teacher') navigate('/teacher');
+        if (destination) {
+          navigate(destination, { replace: true });
+        } else if (result.role === 'teacher') navigate('/teacher');
         else if (result.role === 'examdept') navigate('/examdept');
         else if (result.role === 'student') navigate('/student');
       } else {

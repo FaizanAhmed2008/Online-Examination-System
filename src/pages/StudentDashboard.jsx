@@ -54,8 +54,11 @@ const StudentHome = () => {
   const completedCount = studentSubs.length;
   const latestSub = studentSubs[0];
   const latestResultStr = latestSub
-    ? `${latestSub.percentage}% (${latestSub.score}/${latestSub.totalMarks})`
+    ? latestSub.disqualified || latestSub.status === 'Disqualified'
+      ? 'Disqualified'
+      : `${latestSub.percentage}% (${latestSub.score}/${latestSub.totalMarks})`
     : 'Not Available';
+  const isDisqualified = studentSubs.some((sub) => sub.disqualified || sub.status === 'Disqualified');
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
@@ -113,9 +116,9 @@ const StudentHome = () => {
         />
         <DashboardCard
           title="Status"
-          value="Eligible"
-          description="Admit card cleared"
-          color="orange"
+          value={isDisqualified ? 'Disqualified' : 'Eligible'}
+          description={isDisqualified ? 'Integrity violation logged' : 'Admit card cleared'}
+          color={isDisqualified ? 'gray' : 'orange'}
         />
       </div>
 
@@ -371,7 +374,9 @@ const MyExams = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {studentSubs.map((sub) => (
+              {studentSubs.map((sub) => {
+                const wasDisqualified = sub.disqualified || sub.status === 'Disqualified';
+                return (
                 <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-900">{sub.examName}</div>
@@ -390,12 +395,26 @@ const MyExams = () => {
                     {sub.timeSpent || '15 mins'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      PASSED
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                        wasDisqualified
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}
+                    >
+                      {wasDisqualified ? 'DISQUALIFIED' : 'PASSED'}
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
+              {studentSubs.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center text-sm text-slate-500">
+                    You have not attempted any examination yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -422,8 +441,15 @@ const StudentResults = () => {
         </p>
       </div>
 
+      {studentSubs.length === 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-sm text-slate-500">
+          No results published yet. Complete a scheduled examination to see your scorecard here.
+        </div>
+      )}
+
       {studentSubs.map((sub) => {
-        const isPass = sub.percentage >= 40;
+        const wasDisqualified = sub.disqualified || sub.status === 'Disqualified';
+        const isPass = !wasDisqualified && sub.percentage >= 40;
         return (
           <div
             key={sub.id}
@@ -445,18 +471,28 @@ const StudentResults = () => {
               <div className="text-right">
                 <span
                   className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black border ${
-                    isPass
+                    wasDisqualified
+                      ? 'bg-rose-50 text-rose-700 border-rose-300'
+                      : isPass
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       : 'bg-red-50 text-red-700 border-red-200'
                   }`}
                 >
-                  {isPass ? 'PASSED (GRADE A)' : 'FAILED'}
+                  {wasDisqualified ? 'DISQUALIFIED (0 MARKS)' : isPass ? 'PASSED (GRADE A)' : 'FAILED'}
                 </span>
                 <p className="text-xs text-slate-400 mt-1">
                   Submitted: {new Date(sub.submittedAt).toLocaleDateString()}
                 </p>
               </div>
             </div>
+
+            {wasDisqualified && (
+              <p className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
+                This attempt was terminated by the anti-cheating proctor after {sub.violationCount || 2} integrity
+                violations (tab switch, leaving the exam window, or fullscreen exit). Tab, window and fullscreen
+                monitoring is enforced during live examinations.
+              </p>
+            )}
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center text-xs mb-4">
               <div>

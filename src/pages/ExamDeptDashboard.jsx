@@ -39,14 +39,34 @@ const getStatusBadge = (status) => {
 };
 
 const ExamDeptHome = () => {
-  const { paperSubmissions, scheduledExams, submissions } = usePapers();
+  const { paperSubmissions, scheduledExams, submissions, approvePaperSet } = usePapers();
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const totalSets = paperSubmissions.length;
   const publishedCount = scheduledExams.filter((exam) => exam.status === 'Published').length;
   const pendingReview = paperSubmissions.filter((paper) => paper.status === 'Submitted');
+  const alreadyApproved = paperSubmissions.some((paper) => paper.status === 'Approved');
+
+  const handleApprove = (paperId) => {
+    const exam = approvePaperSet(paperId);
+    setToast({
+      show: true,
+      type: exam ? 'success' : 'error',
+      message: exam
+        ? 'Paper set approved, scheduled for now and published to the student portal.'
+        : 'Approval failed. Only a submitted set can be approved, and only one set may be approved.',
+    });
+  };
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'success' })}
+        />
+      )}
       {/* Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 rounded-2xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
@@ -162,7 +182,17 @@ const ExamDeptHome = () => {
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0">
-                  <Link to="/examdept/schedule" className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors">
+                  <button
+                    type="button"
+                    disabled={alreadyApproved}
+                    onClick={() => handleApprove(paper.paperId)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    title={alreadyApproved ? 'Only one paper set can be approved per exam' : 'Approve and publish this set'}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Approve &amp; Publish</span>
+                  </button>
+                  <Link to="/examdept/schedule" className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-xl text-xs font-semibold transition-colors">
                     <Calendar className="w-3.5 h-3.5" /><span>Schedule</span>
                   </Link>
                 </div>
@@ -243,17 +273,37 @@ const ExamDeptHome = () => {
 
 // Paper Sets View for Exam Dept
 const ExamDeptPaperSets = () => {
-  const { paperSubmissions } = usePapers();
+  const { paperSubmissions, approvePaperSet } = usePapers();
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const alreadyApproved = paperSubmissions.some((paper) => paper.status === 'Approved');
+
+  const handleApprove = (paperId) => {
+    const exam = approvePaperSet(paperId);
+    setToast({
+      show: true,
+      type: exam ? 'success' : 'error',
+      message: exam
+        ? 'Paper set approved, scheduled for now and published to the student portal.'
+        : 'Approval failed. Only a submitted set can be approved, and only one set may be approved.',
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ show: false, message: '', type: 'success' })}
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-slate-900">
             Anonymized Paper Reference Registry
           </h3>
           <p className="text-xs text-slate-500">
-            Only paper reference, question count, total marks, and status are available to this role.
+            Only paper reference, question count, total marks, and status are available to this role. Approve exactly one set — it is scheduled and published to students immediately.
           </p>
         </div>
       </div>
@@ -267,9 +317,17 @@ const ExamDeptPaperSets = () => {
                 <th className="px-6 py-3.5">Question Count</th>
                 <th className="px-6 py-3.5">Total Marks</th>
                 <th className="px-6 py-3.5">Status</th>
+                <th className="px-6 py-3.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
+              {paperSubmissions.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="px-6 py-8 text-center text-sm text-slate-500">
+                    No paper sets have been submitted by faculty yet.
+                  </td>
+                </tr>
+              )}
               {paperSubmissions.map((paper) => (
                 <tr key={paper.paperId} className="hover:bg-slate-50/60 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-900">
@@ -288,6 +346,26 @@ const ExamDeptPaperSets = () => {
                       <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-70"></span>
                       {paper.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    {paper.status === 'Submitted' && (
+                      <button
+                        type="button"
+                        disabled={alreadyApproved}
+                        onClick={() => handleApprove(paper.paperId)}
+                        title={alreadyApproved ? 'Only one paper set can be approved for this examination' : 'Approve and publish this set to students'}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Approve &amp; Publish</span>
+                      </button>
+                    )}
+                    {paper.status === 'Approved' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Live on student portal</span>
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -442,7 +520,8 @@ const ExamDeptSchedule = () => {
 
 // Results & Moderation View
 const ExamDeptResults = () => {
-  const { submissions, paperSubmissions, scheduledExams } = usePapers();
+  const { submissions, paperSubmissions, scheduledExams, auditLog } = usePapers();
+  const violationEvents = auditLog.filter((event) => event.type === 'exam-violation');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -456,6 +535,30 @@ const ExamDeptResults = () => {
           </p>
         </div>
       </div>
+
+      {violationEvents.length > 0 && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldCheck className="w-4 h-4 text-rose-600" />
+            <h4 className="text-sm font-bold text-rose-900">Proctoring Alerts</h4>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+              {violationEvents.length}
+            </span>
+          </div>
+          <ul className="space-y-2">
+            {violationEvents.slice(0, 6).map((event) => (
+              <li key={event.id} className="flex flex-wrap items-center gap-2 text-xs text-rose-900">
+                <span className="font-mono font-bold">{event.username || 'student'}</span>
+                <span className="capitalize px-2 py-0.5 rounded-md bg-white border border-rose-200 font-semibold">
+                  {event.action === 'disqualified' ? 'Disqualified' : event.action === 'auto-submitted' ? 'Auto submitted' : `Warning ${event.violationCount}`}
+                </span>
+                <span className="font-mono text-rose-700/80">{event.examId}</span>
+                <span className="text-rose-700/70">{new Date(event.occurredAt).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
@@ -471,8 +574,16 @@ const ExamDeptResults = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
+              {submissions.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center text-sm text-slate-500">
+                    No student submissions recorded yet.
+                  </td>
+                </tr>
+              )}
               {submissions.map((sub) => {
-                const isPass = sub.percentage >= 40;
+                const isDisqualified = Boolean(sub.disqualified) || sub.status === 'Disqualified';
+                const isPass = !isDisqualified && sub.percentage >= 40;
                 const exam = scheduledExams.find((scheduledExam) => scheduledExam.id === sub.examId);
                 const paper = paperSubmissions.find((submission) =>
                   submission.paperId === (exam?.paperId || sub.paperId)
@@ -506,12 +617,14 @@ const ExamDeptResults = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <span
                         className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
-                          isPass
+                          isDisqualified
+                            ? 'bg-rose-50 text-rose-700 border-rose-300'
+                            : isPass
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-red-50 text-red-700 border-red-200'
                         }`}
                       >
-                        {isPass ? 'PASSED (A)' : 'NEEDS RE-EVAL'}
+                        {isDisqualified ? 'DISQUALIFIED' : isPass ? 'PASSED (A)' : 'NEEDS RE-EVAL'}
                       </span>
                     </td>
                   </tr>

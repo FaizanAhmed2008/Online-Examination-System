@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { PaperProvider } from './context/PaperContext';
 import ExamDeptDashboard from './pages/ExamDeptDashboard';
@@ -9,10 +9,22 @@ import LandingPage from './pages/LandingPage';
 import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children, allowedRoles }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
+
+  // The stored session is restored asynchronously on the very first render.
+  // Waiting for it keeps deep links such as /teacher/question-papers from
+  // bouncing back to the role dashboard on refresh.
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 grid place-items-center text-blue-300 text-sm font-semibold tracking-wide">
+        Restoring secure session…
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
